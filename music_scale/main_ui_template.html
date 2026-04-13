@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Scale Finder</title>
+  <script>
+    (function () {
+      var key = "music_scale_theme";
+      try {
+        var stored = localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          document.documentElement.setAttribute("data-theme", stored);
+          return;
+        }
+      } catch (_error) {
+        // ignore storage errors
+      }
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      --bg-top: #f6f1e8;
+      --bg-bottom: #dce9f4;
+      --halo-a: rgba(11, 123, 108, 0.2);
+      --halo-b: rgba(196, 110, 40, 0.18);
+
+      --ink: #1d2936;
+      --ink-soft: #4b5b70;
+      --ink-muted: #6c7e94;
+
+      --panel: rgba(255, 255, 255, 0.74);
+      --panel-strong: rgba(255, 255, 255, 0.88);
+      --line: rgba(148, 163, 184, 0.36);
+      --focus-ring: rgba(59, 130, 246, 0.4);
+
+      --btn: rgba(255, 255, 255, 0.9);
+      --btn-border: rgba(148, 163, 184, 0.48);
+      --btn-active: rgba(219, 234, 254, 0.84);
+      --btn-active-border: rgba(37, 99, 235, 0.58);
+
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --ok: #166534;
+      --warn: #9a3412;
+
+      --shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+      --shadow-soft: 0 8px 20px rgba(15, 23, 42, 0.1);
+
+      --mono: "Consolas", "Courier New", monospace;
+      --sans: "Segoe UI", "Trebuchet MS", sans-serif;
+    }
+
+    html[data-theme="dark"] {
+      --bg-top: #0a1725;
+      --bg-bottom: #0d1e31;
+      --halo-a: rgba(25, 160, 138, 0.22);
+      --halo-b: rgba(211, 137, 72, 0.2);
+
+      --ink: #e6eef9;
+      --ink-soft: #aec0d8;
+      --ink-muted: #8ba0bc;
+
+      --panel: rgba(17, 31, 47, 0.74);
+      --panel-strong: rgba(19, 35, 54, 0.9);
+      --line: rgba(75, 96, 122, 0.5);
+      --focus-ring: rgba(95, 165, 255, 0.5);
+
+      --btn: rgba(24, 39, 58, 0.92);
+      --btn-border: rgba(85, 106, 130, 0.62);
+      --btn-active: rgba(27, 68, 116, 0.72);
+      --btn-active-border: rgba(100, 176, 255, 0.62);
+
+      --accent: #3fb7a3;
+      --accent-strong: #26a28d;
+      --ok: #58c47b;
+      --warn: #ffb179;
+
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.44);
+      --shadow-soft: 0 10px 22px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(980px 560px at -10% -8%, var(--halo-a), transparent 70%),
+        radial-gradient(980px 560px at 110% 8%, var(--halo-b), transparent 70%),
+        linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+    }
+
+    .wrap {
+      width: min(1320px, calc(100% - 24px));
+      margin: 18px auto 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero {
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2vw, 1.92rem);
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.93rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn,
+    .link-btn,
+    .toggle-btn {
+      border: 1px solid var(--btn-border);
+      border-radius: 999px;
+      padding: 8px 13px;
+      min-height: 36px;
+      background: var(--btn);
+      color: var(--ink);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .btn:hover,
+    .link-btn:hover,
+    .toggle-btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--btn-border) 40%, var(--ink) 60%);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .btn:focus-visible,
+    .link-btn:focus-visible,
+    .toggle-btn:focus-visible,
+    .note-btn:focus-visible,
+    .fret-btn:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .btn.primary {
+      border-color: transparent;
+      color: #ffffff;
+      background: linear-gradient(140deg, var(--accent), var(--accent-strong));
+    }
+
+    .panel {
+      padding: 14px;
+      background: var(--panel-strong);
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+      letter-spacing: 0.01em;
+    }
+
+    .note-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .note-btn,
+    .fret-btn {
+      width: 100%;
+      border: 1px solid var(--btn-border);
+      border-radius: 999px;
+      background: var(--btn);
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+      font-family: var(--mono);
+      transition: transform 0.1s ease, border-color 0.1s ease, background 0.1s ease;
+    }
+
+    .note-btn {
+      padding: 8px 6px;
+      font-size: 0.9rem;
+    }
+
+    .fret-btn {
+      min-height: 32px;
+      padding: 5px 6px;
+      font-size: 0.73rem;
+    }
+
+    .note-btn:hover,
+    .fret-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .note-btn.active,
+    .fret-btn.active {
+      background: var(--btn-active);
+      border-color: var(--btn-active-border);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--btn-active-border) 45%, transparent 55%);
+    }
+
+    .session-row {
+      margin-top: 11px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .selected {
+      margin: 0;
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+    }
+
+    .fretboard-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--panel-strong) 80%, transparent 20%);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 980px;
+    }
+
+    thead th {
+      color: var(--ink-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    tbody td {
+      padding: 6px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th:first-child,
+    td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      text-align: left;
+      min-width: 122px;
+      background: color-mix(in srgb, var(--panel-strong) 92%, transparent 8%);
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .status {
+      margin: 0 0 8px;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .status.warn {
+      color: var(--warn);
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .results {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-height: 330px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--panel-strong) 84%, transparent 16%);
+    }
+
+    .results li {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      color: var(--ink-soft);
+      line-height: 1.42;
+    }
+
+    .results li:last-child {
+      border-bottom: 0;
+    }
+
+    @media (max-width: 960px) {
+      .note-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .wrap {
+        width: calc(100% - 14px);
+        margin-top: 10px;
+      }
+
+      .hero,
+      .panel {
+        border-radius: 20px;
+      }
+
+      .hero {
+        padding: 12px;
+      }
+
+      .panel {
+        padding: 11px;
+      }
+
+      .note-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .subtitle {
+        font-size: 0.88rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Music Scale Finder</h1>
+        <p class="subtitle">Click notes or guitar frets. Matches update live after at least 3 unique notes.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="theme-toggle" class="toggle-btn" type="button" aria-label="Toggle dark mode">Dark Mode</button>
+        <a class="link-btn" href="/transcriber">Open Transcriber</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Note Palette</h2>
+      <div id="note-grid" class="note-grid"></div>
+      <div class="session-row">
+        <button id="clear-btn" class="btn primary" type="button">Clear All</button>
+        <p id="selected-text" class="selected">0 unique: (none)</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Guitar Input (Standard Tuning)</h2>
+      <div class="fretboard-scroll">
+        <table>
+          <thead id="fret-head"></thead>
+          <tbody id="fret-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Matching Scales</h2>
+      <p id="status" class="status">Loading...</p>
+      <ul id="results" class="results"></ul>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const THEME_KEY = 'music_scale_theme';
+
+      const selectedNotes = new Set();
+      let config = null;
+
+      const noteGrid = document.getElementById('note-grid');
+      const clearBtn = document.getElementById('clear-btn');
+      const selectedText = document.getElementById('selected-text');
+      const statusEl = document.getElementById('status');
+      const resultsEl = document.getElementById('results');
+      const fretHead = document.getElementById('fret-head');
+      const fretBody = document.getElementById('fret-body');
+      const themeToggle = document.getElementById('theme-toggle');
+
+      const noteButtons = new Map();
+      const fretButtonsByNote = new Map();
+      let requestToken = 0;
+
+      function getTheme() {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      }
+
+      function setTheme(theme) {
+        const next = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        try {
+          localStorage.setItem(THEME_KEY, next);
+        } catch (_error) {
+          // ignore storage errors
+        }
+      }
+
+      function syncThemeToggle() {
+        const dark = getTheme() === 'dark';
+        themeToggle.textContent = dark ? 'Light Mode' : 'Dark Mode';
+        themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      }
+
+      function noteOrder(note) {
+        if (!config) {
+          return 999;
+        }
+        const idx = config.chromatic_notes.indexOf(note);
+        return idx === -1 ? 999 : idx;
+      }
+
+      function orderedSelected() {
+        return Array.from(selectedNotes).sort((a, b) => noteOrder(a) - noteOrder(b));
+      }
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.className = 'status' + (kind ? ' ' + kind : '');
+      }
+
+      function updateSelectedText() {
+        const ordered = orderedSelected();
+        if (ordered.length === 0) {
+          selectedText.textContent = '0 unique: (none)';
+          return;
+        }
+        selectedText.textContent = ordered.length + ' unique: ' + ordered.join(', ');
+      }
+
+      function addFretButton(note, button) {
+        if (!fretButtonsByNote.has(note)) {
+          fretButtonsByNote.set(note, []);
+        }
+        fretButtonsByNote.get(note).push(button);
+      }
+
+      function toggleNote(note) {
+        if (selectedNotes.has(note)) {
+          selectedNotes.delete(note);
+        } else {
+          selectedNotes.add(note);
+        }
+        refreshUI();
+      }
+
+      function refreshButtonStates() {
+        noteButtons.forEach((button, note) => {
+          button.classList.toggle('active', selectedNotes.has(note));
+        });
+
+        fretButtonsByNote.forEach((buttons, note) => {
+          const active = selectedNotes.has(note);
+          for (const button of buttons) {
+            button.classList.toggle('active', active);
+          }
+        });
+      }
+
+      async function refreshMatches() {
+        const ordered = orderedSelected();
+        resultsEl.innerHTML = '';
+
+        if (ordered.length < config.min_notes) {
+          const needed = config.min_notes - ordered.length;
+          setStatus('Waiting for at least ' + config.min_notes + ' unique notes (' + needed + ' more needed).', 'warn');
+          return;
+        }
+
+        const token = ++requestToken;
+        setStatus('Finding matching scales...', '');
+
+        try {
+          const response = await fetch('/api/match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes: ordered }),
+          });
+
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (_error) {
+            payload = null;
+          }
+
+          if (token !== requestToken) {
+            return;
+          }
+
+          if (!response.ok) {
+            const message = payload && payload.error ? payload.error : 'Failed to fetch matches.';
+            setStatus(message, 'warn');
+            return;
+          }
+
+          const matches = payload.matches || [];
+          if (matches.length === 0) {
+            setStatus('No matching scales found for this note group.', 'warn');
+            return;
+          }
+
+          setStatus(matches.length + ' matching scales found.', 'ok');
+          for (const match of matches) {
+            const item = document.createElement('li');
+            const notes = Array.isArray(match.scale_notes) ? match.scale_notes.join(', ') : '';
+            item.textContent = match.label + ' -> ' + notes;
+            resultsEl.appendChild(item);
+          }
+        } catch (_error) {
+          if (token !== requestToken) {
+            return;
+          }
+          setStatus('Connection error while matching scales.', 'warn');
+        }
+      }
+
+      function refreshUI() {
+        updateSelectedText();
+        refreshButtonStates();
+        void refreshMatches();
+      }
+
+      function renderNoteButtons() {
+        noteGrid.innerHTML = '';
+        noteButtons.clear();
+
+        for (const note of config.chromatic_notes) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'note-btn';
+          button.textContent = note;
+          button.addEventListener('click', () => toggleNote(note));
+          noteGrid.appendChild(button);
+          noteButtons.set(note, button);
+        }
+      }
+
+      function renderFretboard() {
+        fretButtonsByNote.clear();
+        fretHead.innerHTML = '';
+        fretBody.innerHTML = '';
+
+        const headRow = document.createElement('tr');
+        const firstHead = document.createElement('th');
+        firstHead.textContent = 'String / Fret';
+        headRow.appendChild(firstHead);
+
+        for (let fret = 0; fret <= config.max_fret; fret += 1) {
+          const th = document.createElement('th');
+          th.textContent = String(fret);
+          headRow.appendChild(th);
+        }
+        fretHead.appendChild(headRow);
+
+        for (const row of config.strings) {
+          const tr = document.createElement('tr');
+          const label = document.createElement('td');
+          label.textContent = row.string + ' (' + row.open_note_name + ')';
+          tr.appendChild(label);
+
+          for (const fretData of row.frets) {
+            const td = document.createElement('td');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'fret-btn';
+            button.textContent = fretData.note;
+            button.title = row.string + ' fret ' + fretData.fret + ' -> ' + fretData.note_name;
+            button.addEventListener('click', () => toggleNote(fretData.note));
+            addFretButton(fretData.note, button);
+            td.appendChild(button);
+            tr.appendChild(td);
+          }
+
+          fretBody.appendChild(tr);
+        }
+      }
+
+      async function init() {
+        syncThemeToggle();
+        themeToggle.addEventListener('click', () => {
+          const next = getTheme() === 'dark' ? 'light' : 'dark';
+          setTheme(next);
+          syncThemeToggle();
+        });
+
+        clearBtn.disabled = true;
+        setStatus('Loading configuration...', '');
+
+        clearBtn.addEventListener('click', () => {
+          selectedNotes.clear();
+          refreshUI();
+        });
+
+        try {
+          const response = await fetch('/api/config');
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload && payload.error ? payload.error : 'Failed to load configuration.');
+          }
+
+          config = payload;
+          renderNoteButtons();
+          renderFretboard();
+          clearBtn.disabled = false;
+          refreshUI();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load configuration.';
+          setStatus(message, 'warn');
+          selectedText.textContent = 'Unable to initialize UI.';
+        }
+      }
+
+      void init();
+    })();
+  </script>
+</body>
+</html>

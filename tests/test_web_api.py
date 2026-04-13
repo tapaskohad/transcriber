@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import json
+import threading
+import unittest
+from http.server import ThreadingHTTPServer
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from music_scale.finder import ScaleFinder
+from music_scale.melody_transcriber import MelodyTranscriber
+from music_scale.web_ui import _ScaleRequestHandler, _build_config, _build_html, _build_transcriber_html
+
+
+class WebApiTests(unittest.TestCase):
+    _server: ThreadingHTTPServer
+    _thread: threading.Thread
+    _base_url: str
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        handler = _ScaleRequestHandler
+        handler.config = _build_config()
+        handler.finder = ScaleFinder()
+        handler.transcriber = MelodyTranscriber(max_fret=handler.config["max_fret"])
+        handler.html = _build_html().encode("utf-8")
+        handler.transcriber_html = _build_transcriber_html().encode("utf-8")
+        handler.max_body_bytes = 8 * 1024
+
+        cls._server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+        cls._thread.start()
+        cls._base_url = f"http://127.0.0.1:{cls._server.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._server.shutdown()
+        cls._server.server_close()
+        cls._thread.join(timeout=2)
+
+    def _request_json(
+        self,
+        path: str,
+        *,
+        method: str = "GET",
+        payload: dict[str, object] | list[object] | None = None,
+    ) -> tuple[int, dict[str, object]]:
+        headers: dict[str, str] = {}
+        data = None
+        if payload is not None:
+            data = json.dumps(payload).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+
+        request = Request(f"{self._base_url}{path}", data=data, method=method, headers=headers)
+        try:
+            with urlopen(request, timeout=4) as response:
+                body = response.read().decode("utf-8")
+                return response.status, json.loads(body)
+        except HTTPError as exc:
+            body = exc.read().decode("utf-8")
+            return exc.code, json.loads(body)
+
+    def test_get_config_supports_query_string(self) -> None:
+        status, payload = self._request_json("/api/config?cache=1")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["min_notes"], 3)
+        self.assertEqual(payload["max_fret"], 12)
+
+    def test_match_endpoint_supports_query_string(self) -> None:
+        status, payload = self._request_json(
+            "/api/match?source=test",
+            method="POST",
+            payload={"notes": ["C", "E", "G", "C"]},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["selected_notes"], ["C", "E", "G"])
+        self.assertEqual(payload["count"], 3)
+
+    def test_transcribe_notes_mode_returns_expected_data(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={"mode": "notes", "notes": ["E4", "F#4", "G4"]},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["notes"], ["E4", "F#4", "G4"])
+        self.assertEqual(payload["tab_tokens"], ["1:0", "1:2", "1:3"])
+
+    def test_rejects_non_object_json_body(self) -> None:
+        status, payload = self._request_json(
+            "/api/match",
+            method="POST",
+            payload=["C", "E", "G"],
+        )
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"], "JSON body must be an object.")
+
+    def test_rejects_oversized_request_body(self) -> None:
+        large_notes_blob = "C" * 9000
+        status, payload = self._request_json(
+            "/api/match",
+            method="POST",
+            payload={"notes": [large_notes_blob]},
+        )
+
+        self.assertEqual(status, 413)
+        self.assertIn("Request body too large", str(payload["error"]))
+
+
+if __name__ == "__main__":
+    unittest.main()
