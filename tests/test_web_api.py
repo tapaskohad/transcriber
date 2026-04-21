@@ -89,6 +89,61 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(payload["notes"], ["E4", "F#4", "G4"])
         self.assertEqual(payload["tab_tokens"], ["1:0", "1:2", "1:3"])
 
+    def test_transcribe_notes_mode_preserves_note_groups(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["E4", "F#4"], ["G4", "A4"]],
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["note_groups"], [["E4", "F#4"], ["G4", "A4"]])
+        self.assertEqual(payload["tab_groups"], [["1:0", "1:2"], ["1:3", "1:5"]])
+        self.assertIn("2---------3", payload["ascii_tab"])
+
+    def test_transcribe_notes_mode_accepts_compact_notation_with_lyrics(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [
+                    ["D#G#A#G#", "D#G#F##G#"],
+                    ["Tu", "Paas", "D#+", "C#+", "B"],
+                ],
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            payload["note_groups"],
+            [
+                ["D#4", "G#4", "A#4", "G#4", "D#4", "G#4", "F#4", "G#4"],
+                ["D#5", "C#5", "B4"],
+            ],
+        )
+        self.assertEqual(sum(len(group) for group in payload["tab_groups"]), len(payload["notes"]))
+
+    def test_transcribe_notes_mode_plus_octave_falls_back_when_needed(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["D#+", "D#+", "D#+", "F#+E+", "C#+", "D#+", "C#+"]],
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            payload["note_groups"],
+            [["D#5", "D#5", "D#5", "F#4", "E5", "C#5", "D#5", "C#5"]],
+        )
+        self.assertEqual(len(payload["notes"]), 8)
+
     def test_rejects_non_object_json_body(self) -> None:
         status, payload = self._request_json(
             "/api/match",

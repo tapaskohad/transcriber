@@ -26,7 +26,9 @@ _STANDARD_TUNING_MIDI: dict[int, int] = {
     1: 64,  # E4
 }
 
-_NOTE_WITH_OCTAVE_RE = re.compile(r"^\s*([A-Ga-g])([#b??]?)(-?\d+)?\s*$")
+_NOTE_WITH_OCTAVE_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(\+*)(-?\d+)?\s*$")
+_COMPACT_NOTE_RE = re.compile(r"([A-Ga-g])([#b]?)(\+*)(-?\d+)?")
+_COMPACT_NOTE_CHARS_RE = re.compile(r"^[A-Ga-g#b+\-0-9]+$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,8 +160,10 @@ class MelodyTranscriber:
         current_time = 0.0
 
         for raw in note_tokens:
-            note, octave = self._parse_note_token(raw)
-            midi = self._resolve_midi(note, octave, previous_midi)
+            note, octave, enforce_octave = self._parse_note_token(raw)
+            midi = self._resolve_midi(
+                note, octave, previous_midi, enforce_octave=enforce_octave
+            )
             previous_midi = midi
 
             note_name, detected_octave = midi_to_note(midi)
@@ -189,17 +193,47 @@ class MelodyTranscriber:
         explicit_octave_tokens: list[str] = []
 
         for raw in note_tokens:
-            token = str(raw).strip()
-            if not token:
-                continue
-            if _NOTE_WITH_OCTAVE_RE.match(token) is None:
-                continue
-
-            valid_tokens.append(token)
-            if any(char.isdigit() for char in token):
-                explicit_octave_tokens.append(token)
+            extracted_tokens = MelodyTranscriber._extract_note_tokens(str(raw))
+            for token in extracted_tokens:
+                valid_tokens.append(token)
+                if any(char.isdigit() for char in token):
+                    explicit_octave_tokens.append(token)
 
         return explicit_octave_tokens if explicit_octave_tokens else valid_tokens
+
+    @staticmethod
+    def _extract_note_tokens(raw_token: str) -> list[str]:
+        token = (
+            str(raw_token)
+            .strip()
+            .replace("\u266f", "#")
+            .replace("\u266d", "b")
+            .rstrip(",;")
+        )
+        if not token:
+            return []
+
+        if _NOTE_WITH_OCTAVE_RE.match(token) is not None:
+            return [token]
+
+        # Accept compact blobs like D#G#A#G# or F#+E+ while still ignoring
+        # free text lyrics.
+        if _COMPACT_NOTE_CHARS_RE.match(token) is None:
+            return []
+        if not any(char in "#+0123456789" for char in token):
+            return []
+
+        extracted: list[str] = []
+        for match in _COMPACT_NOTE_RE.finditer(token):
+            compact_token = (
+                f"{match.group(1)}"
+                f"{match.group(2) or ''}"
+                f"{match.group(3) or ''}"
+                f"{match.group(4) or ''}"
+            )
+            if compact_token:
+                extracted.append(compact_token)
+        return extracted
 
     def transcribe_frequencies(
         self,
@@ -316,28 +350,63 @@ class MelodyTranscriber:
         chosen.reverse()
         return tuple(chosen)
 
-    def _parse_note_token(self, token: str) -> tuple[str, int | None]:
+    def _parse_note_token(self, token: str) -> tuple[str, int | None, bool]:
         match = _NOTE_WITH_OCTAVE_RE.match(token)
         if match is None:
             raise ValueError(
-                f"Invalid note token '{token}'. Use formats like C, F#, Bb3, G4."
+                f"Invalid note token '{token}'. Use formats like C, F#, Bb3, G4, C#+."
             )
 
         note = normalize_note(f"{match.group(1)}{match.group(2) or ''}")
-        octave = int(match.group(3)) if match.group(3) is not None else None
-        return note, octave
+        plus_marks = match.group(3) or ""
+        octave_raw = match.group(4)
+        if octave_raw is not None:
+            return note, int(octave_raw), True
+        if plus_marks:
+            return note, 4 + len(plus_marks), False
+        return note, None, False
 
     def _resolve_midi(
-        self, note: str, octave: int | None, previous_midi: int | None
+        self,
+        note: str,
+        octave: int | None,
+        previous_midi: int | None,
+        *,
+        enforce_octave: bool = True,
     ) -> int:
         if octave is not None:
-            midi = note_to_midi(note, octave)
-            if not self._candidate_positions(midi):
+            preferred_midi = note_to_midi(note, octave)
+            if enforce_octave:
+                if not self._candidate_positions(preferred_midi):
+                    raise ValueError(
+                        f"Note {note}{octave} is outside playable range for frets "
+                        f"{self.min_fret}-{self.max_fret}."
+                    )
+                return preferred_midi
+
+            pitch_class = note_index(note)
+            candidates = [
+                midi
+                for midi in range(self._playable_min_midi, self._playable_max_midi + 1)
+                if midi % len(CHROMATIC_NOTES) == pitch_class
+                and self._candidate_positions(midi)
+            ]
+            if not candidates:
                 raise ValueError(
-                    f"Note {note}{octave} is outside playable range for frets "
-                    f"{self.min_fret}-{self.max_fret}."
+                    f"No playable octave found for note {note} in range "
+                    f"{self._playable_min_midi}-{self._playable_max_midi}."
                 )
-            return midi
+
+            if previous_midi is not None:
+                return min(
+                    candidates,
+                    key=lambda midi: (
+                        abs(midi - preferred_midi),
+                        abs(midi - previous_midi),
+                        midi,
+                    ),
+                )
+            return min(candidates, key=lambda midi: (abs(midi - preferred_midi), midi))
 
         pitch_class = note_index(note)
         candidates = [
@@ -627,6 +696,8 @@ def format_ascii_tab(
     tabs: Sequence[TabPosition],
     *,
     measure_width: int = 72,
+    group_lengths: Sequence[int] | None = None,
+    group_gap: int = 7,
 ) -> str:
     """Format tab positions into classic six-string ASCII tab blocks."""
     string_order = (1, 2, 3, 4, 5, 6)  # high e -> low E
@@ -642,9 +713,12 @@ def format_ascii_tab(
     if measure_width < 8:
         raise ValueError("measure_width must be at least 8.")
 
+    if group_gap < 0:
+        raise ValueError("group_gap cannot be negative.")
+
     lanes: dict[int, list[str]] = {string_id: [] for string_id in string_order}
 
-    for tab in tabs:
+    def append_tab_cell(tab: TabPosition) -> None:
         fret_text = str(tab.fret)
         cell_width = max(2, len(fret_text)) + 1
         for string_id in string_order:
@@ -653,6 +727,31 @@ def format_ascii_tab(
             else:
                 cell = "-" * cell_width
             lanes[string_id].append(cell)
+
+    def append_group_gap() -> None:
+        if group_gap == 0:
+            return
+        dash_cell = "-" * group_gap
+        for string_id in string_order:
+            lanes[string_id].append(dash_cell)
+
+    if group_lengths:
+        cursor = 0
+        safe_lengths = [max(0, int(length)) for length in group_lengths]
+        for group_index, group_len in enumerate(safe_lengths):
+            group_tabs = tabs[cursor : cursor + group_len]
+            cursor += group_len
+            for tab in group_tabs:
+                append_tab_cell(tab)
+            has_next_group = group_index < (len(safe_lengths) - 1)
+            if has_next_group and group_tabs:
+                append_group_gap()
+
+        for tab in tabs[cursor:]:
+            append_tab_cell(tab)
+    else:
+        for tab in tabs:
+            append_tab_cell(tab)
 
     rendered: dict[int, str] = {}
     for string_id in string_order:

@@ -258,6 +258,12 @@
       flex: 1 1 220px;
     }
 
+    .save-tabs-btn {
+      flex: 1 1 200px;
+      border-color: #607a95;
+      background: linear-gradient(145deg, #7390aa 0%, #5d7892 100%);
+    }
+
     .hint {
       margin: 0;
       color: #5a7188;
@@ -387,6 +393,11 @@
     html[data-theme="dark"] .event-item {
       border-bottom-color: #2a3d51;
       color: #aec2da;
+    }
+
+    html[data-theme="dark"] .save-tabs-btn {
+      border-color: #6f88a3;
+      background: linear-gradient(145deg, #728ca6 0%, #5a728a 100%);
     }
 
     @media (max-width: 780px) {
@@ -611,6 +622,7 @@
         <button id="octaveDownBtn" class="action-btn octave-btn" type="button" title="Shift notes down one octave" aria-label="Shift notes down one octave">-</button>
         <button id="octaveUpBtn" class="action-btn octave-btn" type="button" title="Shift notes up one octave" aria-label="Shift notes up one octave">+</button>
         <button id="transcribeBtn" class="action-btn transcribe-run-btn" type="button">Transcribe Melody</button>
+        <button id="saveTabsBtn" class="action-btn save-tabs-btn" type="button" disabled>Save Tabs TXT</button>
       </div>
       <p id="transcribeStatus" class="hint">Ready.</p>
 
@@ -646,6 +658,10 @@
     const selectedMeterEl = document.getElementById("selectedMeter");
     const transcribeCountEl = document.getElementById("transcribeCount");
     const transcribeMeterEl = document.getElementById("transcribeMeter");
+    const saveTabsBtnEl = document.getElementById("saveTabsBtn");
+
+    let pendingNoteGroupLengths = [];
+    let lastTabsExportText = "";
 
     function getStoredTheme() {
       try {
@@ -763,6 +779,133 @@
         .filter(Boolean);
     }
 
+    function tokenizeInputByLine(raw) {
+      return raw
+        .split(/\r?\n/)
+        .map((line) => tokenizeInput(line))
+        .filter((group) => group.length > 0);
+    }
+
+    function extractNoteTokensFromToken(rawToken) {
+      const token = String(rawToken || "")
+        .trim()
+        .replace(/\u266f/g, "#")
+        .replace(/\u266d/g, "b")
+        .replace(/[;,]+$/g, "");
+      if (!token) {
+        return [];
+      }
+
+      const fullNoteMatch = token.match(/^([A-Ga-g])([#b]?)(\+*)(-?\d+)?$/);
+      if (fullNoteMatch) {
+        return [token];
+      }
+
+      if (!/^[A-Ga-g#b+\-0-9]+$/.test(token)) {
+        return [];
+      }
+      if (!/[#+\d]/.test(token)) {
+        return [];
+      }
+
+      const compact = [];
+      const compactRe = /([A-Ga-g])([#b]?)(\+*)(-?\d+)?/g;
+      let match;
+      while ((match = compactRe.exec(token)) !== null) {
+        compact.push(`${match[1]}${match[2] || ""}${match[3] || ""}${match[4] || ""}`);
+      }
+      return compact;
+    }
+
+    function extractNoteGroups(tokenGroups) {
+      return tokenGroups
+        .map((group) => group.flatMap((token) => extractNoteTokensFromToken(token)))
+        .filter((group) => group.length > 0);
+    }
+
+    function flattenTokenGroups(groups) {
+      const merged = [];
+      for (const group of groups) {
+        merged.push(...group);
+      }
+      return merged;
+    }
+
+    function groupByLengths(values, lengths) {
+      if (!Array.isArray(lengths) || lengths.length === 0) {
+        return values.length > 0 ? [values] : [];
+      }
+
+      const groups = [];
+      let cursor = 0;
+      for (const length of lengths) {
+        const safeLength = Number.isFinite(length) ? Math.max(0, Math.floor(length)) : 0;
+        groups.push(values.slice(cursor, cursor + safeLength));
+        cursor += safeLength;
+      }
+      if (cursor < values.length) {
+        groups.push(values.slice(cursor));
+      }
+      return groups.filter((group) => group.length > 0);
+    }
+
+    function normalizeTokenGroups(rawGroups) {
+      if (!Array.isArray(rawGroups)) {
+        return [];
+      }
+
+      const normalized = [];
+      for (const maybeGroup of rawGroups) {
+        if (!Array.isArray(maybeGroup)) {
+          continue;
+        }
+        const group = maybeGroup
+          .map((token) => String(token).trim())
+          .filter(Boolean);
+        if (group.length > 0) {
+          normalized.push(group);
+        }
+      }
+      return normalized;
+    }
+
+    function formatTokenGroups(label, groups) {
+      if (!Array.isArray(groups) || groups.length === 0) {
+        return `${label}: -`;
+      }
+
+      const chunks = groups
+        .map((group) => group.join(" ").trim())
+        .filter(Boolean);
+      if (chunks.length === 0) {
+        return `${label}: -`;
+      }
+      return `${label}: ${chunks.join(" ------ ")}`;
+    }
+
+    function buildTabsExportText(payload, noteGroups, tabGroups) {
+      const notes = Array.isArray(payload.notes) ? payload.notes : [];
+      const tabs = Array.isArray(payload.tab_tokens) ? payload.tab_tokens : [];
+      const pitchClasses = Array.isArray(payload.pitch_classes) ? payload.pitch_classes : [];
+      const asciiTab = typeof payload.ascii_tab === "string" ? payload.ascii_tab : "";
+
+      const safeNoteGroups = noteGroups.length > 0 ? noteGroups : (notes.length > 0 ? [notes] : []);
+      const safeTabGroups = tabGroups.length > 0 ? tabGroups : (tabs.length > 0 ? [tabs] : []);
+      const lines = [
+        formatTokenGroups("Notes", safeNoteGroups),
+        "",
+        formatTokenGroups("Tabs", safeTabGroups),
+        "",
+        `Pitch Classes: ${pitchClasses.length > 0 ? pitchClasses.join(", ") : "-"}`
+      ];
+
+      if (asciiTab.trim().length > 0) {
+        lines.push("", "ASCII Tab:", asciiTab);
+      }
+
+      return `${lines.join("\r\n")}\r\n`;
+    }
+
     function updateOctaveButtonState() {
       const notesMode = transcribeModeEl.value === "notes";
       octaveDownBtnEl.disabled = !notesMode;
@@ -770,12 +913,16 @@
     }
 
     function shiftOctaveInToken(token, delta) {
-      const match = token.match(/^([A-Ga-g])([#b]?)(-?\d+)$/);
+      const match = token.match(/^([A-Ga-g])([#b]?)(\+*)(-?\d+)?$/);
       if (!match) {
         return null;
       }
 
-      const octave = Number.parseInt(match[3], 10);
+      const explicitOctave = match[4];
+      const plusMarks = match[3] || "";
+      const octave = explicitOctave !== undefined && explicitOctave !== null
+        ? Number.parseInt(explicitOctave, 10)
+        : (4 + plusMarks.length);
       if (!Number.isFinite(octave)) {
         return null;
       }
@@ -789,28 +936,27 @@
         return;
       }
 
-      const tokens = tokenizeInput(transcribeInputEl.value);
+      const tokenGroups = tokenizeInputByLine(transcribeInputEl.value);
+      const extractedGroups = extractNoteGroups(tokenGroups);
+      const tokens = flattenTokenGroups(extractedGroups);
       if (tokens.length === 0) {
-        setStatus("Enter note tokens first.");
+        setStatus("No recognizable note tokens found.");
         return;
       }
 
       let shiftedCount = 0;
-      const shiftedTokens = tokens.map((token) => {
-        const shifted = shiftOctaveInToken(token, delta);
-        if (!shifted) {
-          return token;
-        }
-        shiftedCount += 1;
-        return shifted;
-      });
+      const shiftedGroups = extractedGroups.map((group) =>
+        group.map((token) => {
+          const shifted = shiftOctaveInToken(token, delta);
+          if (!shifted) {
+            return token;
+          }
+          shiftedCount += 1;
+          return shifted;
+        })
+      );
 
-      if (shiftedCount === 0) {
-        setStatus("No octave values found to shift. Use tokens like E4 F#4 G4.");
-        return;
-      }
-
-      transcribeInputEl.value = shiftedTokens.join(" ");
+      transcribeInputEl.value = shiftedGroups.map((group) => group.join(" ")).join("\n");
       const direction = delta > 0 ? "up" : "down";
       setStatus(
         `Shifted ${shiftedCount} note${shiftedCount === 1 ? "" : "s"} ${direction} by one octave.`
@@ -821,21 +967,89 @@
       transcribeStatusEl.textContent = text;
     }
 
+    function defaultExportFileName() {
+      const now = new Date();
+      const yyyy = String(now.getFullYear());
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      return `melody-tabs-${yyyy}${mm}${dd}-${hh}${min}.txt`;
+    }
+
+    async function saveTabsToTxt() {
+      if (!lastTabsExportText.trim()) {
+        setStatus("Transcribe a melody first, then save the tab export.");
+        return;
+      }
+
+      const fileName = defaultExportFileName();
+
+      try {
+        if (typeof window.showSaveFilePicker === "function") {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [
+              {
+                description: "Text Files",
+                accept: { "text/plain": [".txt"] }
+              }
+            ]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(lastTabsExportText);
+          await writable.close();
+          setStatus("Tabs saved to TXT.");
+          return;
+        }
+
+        const blob = new Blob([lastTabsExportText], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus("Tabs downloaded as TXT.");
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          setStatus("Save canceled.");
+          return;
+        }
+        setStatus(`Error while saving tabs: ${error.message}`);
+      }
+    }
+
     function renderOutput(payload) {
       const notes = Array.isArray(payload.notes) ? payload.notes : [];
       const tabs = Array.isArray(payload.tab_tokens) ? payload.tab_tokens : [];
       const pitchClasses = Array.isArray(payload.pitch_classes) ? payload.pitch_classes : [];
       const asciiTab = typeof payload.ascii_tab === "string" ? payload.ascii_tab : "";
+      let noteGroups = normalizeTokenGroups(payload.note_groups);
+      let tabGroups = normalizeTokenGroups(payload.tab_groups);
+
+      if (noteGroups.length === 0 && pendingNoteGroupLengths.length > 0) {
+        noteGroups = groupByLengths(notes, pendingNoteGroupLengths);
+      }
+      if (tabGroups.length === 0 && pendingNoteGroupLengths.length > 0) {
+        tabGroups = groupByLengths(tabs, pendingNoteGroupLengths);
+      }
 
       transcribeOutputEl.innerHTML = "";
 
       const notesRow = document.createElement("p");
       notesRow.className = "output-row";
-      notesRow.textContent = `Notes: ${notes.length > 0 ? notes.join(", ") : "-"}`;
+      notesRow.textContent = formatTokenGroups(
+        "Notes",
+        noteGroups.length > 0 ? noteGroups : (notes.length > 0 ? [notes] : [])
+      );
 
       const tabsRow = document.createElement("p");
       tabsRow.className = "output-row";
-      tabsRow.textContent = `Tabs: ${tabs.length > 0 ? tabs.join("  ") : "-"}`;
+      tabsRow.textContent = formatTokenGroups(
+        "Tabs",
+        tabGroups.length > 0 ? tabGroups : (tabs.length > 0 ? [tabs] : [])
+      );
 
       const pitchRow = document.createElement("p");
       pitchRow.className = "output-row";
@@ -851,6 +1065,10 @@
         tabBlock.textContent = asciiTab;
         transcribeOutputEl.appendChild(tabBlock);
       }
+
+      lastTabsExportText = buildTabsExportText(payload, noteGroups, tabGroups);
+      saveTabsBtnEl.disabled = !lastTabsExportText.trim();
+      pendingNoteGroupLengths = [];
 
       eventsBoxEl.innerHTML = "";
       const events = Array.isArray(payload.events) ? payload.events : [];
@@ -881,13 +1099,17 @@
 
       const mode = transcribeModeEl.value || "notes";
       const body = { mode };
+      pendingNoteGroupLengths = [];
 
       if (mode === "notes") {
-        const notes = tokenizeInput(raw);
+        const noteGroups = tokenizeInputByLine(raw);
+        const notes = flattenTokenGroups(noteGroups);
         if (notes.length === 0) {
           setStatus("Enter note tokens like E4 F#4 G4.");
           return;
         }
+        pendingNoteGroupLengths = noteGroups.map((group) => group.length);
+        body.note_groups = noteGroups;
         body.notes = notes;
       } else if (mode === "frequencies") {
         const frequencyTokens = tokenizeInput(raw);
@@ -940,6 +1162,9 @@
     transcribeModeEl.addEventListener("change", updateOctaveButtonState);
     octaveDownBtnEl.addEventListener("click", () => shiftInputOctave(-1));
     octaveUpBtnEl.addEventListener("click", () => shiftInputOctave(1));
+    saveTabsBtnEl.addEventListener("click", () => {
+      void saveTabsToTxt();
+    });
     transcribeBtnEl.addEventListener("click", () => {
       void runTranscription();
     });
@@ -963,6 +1188,7 @@
     renderSelectedCount();
     setTranscribeTelemetry(0);
     updateOctaveButtonState();
+    saveTabsBtnEl.disabled = true;
   </script>
 </body>
 </html>

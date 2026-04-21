@@ -42,6 +42,58 @@ class MelodyTranscriberTests(unittest.TestCase):
         filtered = MelodyTranscriber.filter_note_tokens(tokens)
 
         self.assertEqual(filtered, ["B3", "B3", "B3", "F#4", "F#4", "F#4", "C#4", "D4", "E4"])
+
+    def test_filter_note_tokens_supports_compact_notation_and_plus_octave(self) -> None:
+        tokens = [
+            "D#G#A#G#,",
+            "D#G#F##G#",
+            "Tu",
+            "Paas",
+            "Hai",
+            "Mere",
+            "D#+",
+            "F#+E+",
+            "C#+",
+            "B",
+        ]
+
+        filtered = MelodyTranscriber.filter_note_tokens(tokens)
+
+        self.assertEqual(
+            filtered,
+            [
+                "D#",
+                "G#",
+                "A#",
+                "G#",
+                "D#",
+                "G#",
+                "F#",
+                "G#",
+                "D#+",
+                "F#+",
+                "E+",
+                "C#+",
+                "B",
+            ],
+        )
+
+    def test_transcribe_note_tokens_supports_plus_octave_marker(self) -> None:
+        transcriber = MelodyTranscriber(max_fret=12)
+
+        result = transcriber.transcribe_notes(["D#+", "C#+", "B"])
+
+        self.assertEqual(result.notes, ("D#5", "C#5", "B4"))
+        self.assertEqual(len(result.tab_tokens), 3)
+        self.assertTrue(all(":" in token for token in result.tab_tokens))
+
+    def test_transcribe_plus_octave_prefers_high_but_falls_back_to_playable(self) -> None:
+        transcriber = MelodyTranscriber(max_fret=12)
+
+        result = transcriber.transcribe_notes(["F#+", "E+"])
+
+        self.assertEqual(result.notes, ("F#4", "E5"))
+
     def test_unplayable_note_raises(self) -> None:
         transcriber = MelodyTranscriber(max_fret=12)
 

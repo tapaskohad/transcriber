@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from .finder import ScaleFinder
 from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name
-from .melody_transcriber import MelodyTranscriber
+from .melody_transcriber import MelodyTranscriber, format_ascii_tab
 from .notes import CHROMATIC_NOTES, normalize_many
 from .scales import COMMON_SCALE_PATTERNS
 
@@ -27,6 +27,24 @@ def _build_html() -> str:
 
 def _build_transcriber_html() -> str:
     return (_TEMPLATE_DIR / "transcriber_ui_template.html").read_text(encoding="utf-8")
+
+
+def _chunk_by_lengths(values: list[str], lengths: list[int]) -> list[list[str]]:
+    """Split a flat value list into chunks using the provided lengths."""
+    if not lengths:
+        return [values] if values else []
+
+    chunks: list[list[str]] = []
+    cursor = 0
+    for length in lengths:
+        safe_length = max(0, int(length))
+        chunks.append(values[cursor : cursor + safe_length])
+        cursor += safe_length
+
+    if cursor < len(values):
+        chunks.append(values[cursor:])
+    return chunks
+
 
 def _build_config(max_fret: int = 12, min_notes: int = 3) -> dict[str, Any]:
     strings = sorted(STANDARD_TUNING.keys())
@@ -189,20 +207,51 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_transcribe(self, body: dict[str, Any]) -> None:
         mode = str(body.get("mode", "notes")).strip().lower()
+        note_groups_payload: list[list[str]] = []
+        tab_groups_payload: list[list[str]] = []
+        ascii_tab_payload = ""
 
         try:
             if mode == "notes":
-                raw_notes = body.get("notes", [])
-                if not isinstance(raw_notes, list):
-                    raise ValueError("Field 'notes' must be a list.")
+                raw_note_groups = body.get("note_groups", None)
+                note_groups: list[list[str]] = []
 
-                notes = self.transcriber.filter_note_tokens(raw_notes)
+                if raw_note_groups is not None:
+                    if not isinstance(raw_note_groups, list):
+                        raise ValueError("Field 'note_groups' must be a list of note lists.")
+                    for raw_group in raw_note_groups:
+                        if not isinstance(raw_group, list):
+                            raise ValueError("Field 'note_groups' must be a list of note lists.")
+                        filtered_group = self.transcriber.filter_note_tokens(
+                            str(token) for token in raw_group
+                        )
+                        if filtered_group:
+                            note_groups.append(filtered_group)
+                else:
+                    raw_notes = body.get("notes", [])
+                    if not isinstance(raw_notes, list):
+                        raise ValueError("Field 'notes' must be a list.")
+                    filtered_notes = self.transcriber.filter_note_tokens(
+                        str(token) for token in raw_notes
+                    )
+                    if filtered_notes:
+                        note_groups.append(filtered_notes)
+
+                notes = [token for group in note_groups for token in group]
                 if not notes:
                     raise ValueError(
                         "No note tokens found. Use formats like E4 F#4 G4."
                     )
 
                 result = self.transcriber.transcribe_notes(notes)
+                group_lengths = [len(group) for group in note_groups]
+                note_groups_payload = _chunk_by_lengths(list(result.notes), group_lengths)
+                tab_groups_payload = _chunk_by_lengths(list(result.tab_tokens), group_lengths)
+                ascii_tab_payload = (
+                    format_ascii_tab(result.tabs, group_lengths=group_lengths)
+                    if len(group_lengths) > 1
+                    else result.ascii_tab
+                )
             elif mode == "frequencies":
                 raw_frequencies = body.get("frequencies", [])
                 if not isinstance(raw_frequencies, list):
@@ -223,11 +272,13 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                     frequencies,
                     frame_step_s=frame_step_s,
                 )
+                ascii_tab_payload = result.ascii_tab
             elif mode == "wav":
                 wav_path = str(body.get("wav_path", "")).strip()
                 if not wav_path:
                     raise ValueError("Field 'wav_path' is required for wav mode.")
                 result = self.transcriber.transcribe_wav(wav_path)
+                ascii_tab_payload = result.ascii_tab
             else:
                 raise ValueError("Unsupported mode. Use notes, frequencies, or wav.")
         except (TypeError, ValueError, FileNotFoundError) as exc:
@@ -245,7 +296,9 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             "mode": mode,
             "notes": list(result.notes),
             "tab_tokens": list(result.tab_tokens),
-            "ascii_tab": result.ascii_tab,
+            "note_groups": note_groups_payload,
+            "tab_groups": tab_groups_payload,
+            "ascii_tab": ascii_tab_payload or result.ascii_tab,
             "pitch_classes": pitch_classes,
             "events": [
                 {
