@@ -4,6 +4,7 @@ import json
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
+from typing import cast
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -55,10 +56,26 @@ class WebApiTests(unittest.TestCase):
         try:
             with urlopen(request, timeout=4) as response:
                 body = response.read().decode("utf-8")
-                return response.status, json.loads(body)
+                parsed = json.loads(body)
+                if not isinstance(parsed, dict):
+                    self.fail("Expected JSON object response body.")
+                return response.status, cast(dict[str, object], parsed)
         except HTTPError as exc:
             body = exc.read().decode("utf-8")
-            return exc.code, json.loads(body)
+            parsed = json.loads(body)
+            if not isinstance(parsed, dict):
+                self.fail("Expected JSON object response body.")
+            return exc.code, cast(dict[str, object], parsed)
+
+    def _require_str(self, value: object, field: str) -> str:
+        if not isinstance(value, str):
+            self.fail(f"Expected '{field}' to be a string, got {type(value).__name__}.")
+        return value
+
+    def _require_list(self, value: object, field: str) -> list[object]:
+        if not isinstance(value, list):
+            self.fail(f"Expected '{field}' to be a list, got {type(value).__name__}.")
+        return value
 
     def test_get_config_supports_query_string(self) -> None:
         status, payload = self._request_json("/api/config?cache=1")
@@ -102,7 +119,8 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["note_groups"], [["E4", "F#4"], ["G4", "A4"]])
         self.assertEqual(payload["tab_groups"], [["1:0", "1:2"], ["1:3", "1:5"]])
-        self.assertIn("2---------3", payload["ascii_tab"])
+        ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
+        self.assertIn("2---------3", ascii_tab)
 
     def test_transcribe_notes_mode_accepts_compact_notation_with_lyrics(self) -> None:
         status, payload = self._request_json(
@@ -125,7 +143,13 @@ class WebApiTests(unittest.TestCase):
                 ["D#5", "C#5", "B4"],
             ],
         )
-        self.assertEqual(sum(len(group) for group in payload["tab_groups"]), len(payload["notes"]))
+        tab_groups_raw = self._require_list(payload["tab_groups"], "tab_groups")
+        tab_groups = [
+            self._require_list(group, "tab_groups[]")
+            for group in tab_groups_raw
+        ]
+        notes = self._require_list(payload["notes"], "notes")
+        self.assertEqual(sum(len(group) for group in tab_groups), len(notes))
 
     def test_transcribe_notes_mode_plus_octave_falls_back_when_needed(self) -> None:
         status, payload = self._request_json(
@@ -142,7 +166,8 @@ class WebApiTests(unittest.TestCase):
             payload["note_groups"],
             [["D#5", "D#5", "D#5", "F#4", "E5", "C#5", "D#5", "C#5"]],
         )
-        self.assertEqual(len(payload["notes"]), 8)
+        notes = self._require_list(payload["notes"], "notes")
+        self.assertEqual(len(notes), 8)
 
     def test_rejects_non_object_json_body(self) -> None:
         status, payload = self._request_json(
