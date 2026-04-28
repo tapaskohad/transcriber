@@ -29,6 +29,10 @@ def _build_transcriber_html() -> str:
     return (_TEMPLATE_DIR / "transcriber_ui_template.html").read_text(encoding="utf-8")
 
 
+def _build_tab_sequencer_html() -> str:
+    return (_TEMPLATE_DIR / "tab_sequencer_ui_template.html").read_text(encoding="utf-8")
+
+
 def _chunk_by_lengths(values: list[str], lengths: list[int]) -> list[list[str]]:
     """Split a flat value list into chunks using the provided lengths."""
     if not lengths:
@@ -97,6 +101,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
     transcriber = MelodyTranscriber(max_fret=config["max_fret"])
     html = _build_html().encode("utf-8")
     transcriber_html = _build_transcriber_html().encode("utf-8")
+    tab_sequencer_html = _build_tab_sequencer_html().encode("utf-8")
     max_body_bytes = 512 * 1024
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -109,12 +114,8 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = self._request_path()
 
-        if path == "/":
+        if path in {"/", "/transcriber", "/transcriber/", "/tab-sequencer", "/tab-sequencer/"}:
             self._send_html(self.html)
-            return
-
-        if path in {"/transcriber", "/transcriber/"}:
-            self._send_html(self.transcriber_html)
             return
 
         if path == "/api/config":
@@ -207,11 +208,24 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_transcribe(self, body: dict[str, Any]) -> None:
         mode = str(body.get("mode", "notes")).strip().lower()
+        tab_strategy = str(body.get("tab_strategy", "balanced")).strip().lower()
+        locked_string_raw = body.get("locked_string", None)
+        group_gap_raw = body.get("group_gap", 7)
+        raw_preferred_tabs = body.get("preferred_tabs", None)
         note_groups_payload: list[list[str]] = []
         tab_groups_payload: list[list[str]] = []
         ascii_tab_payload = ""
 
         try:
+            locked_string: int | None = None
+            if locked_string_raw is not None and str(locked_string_raw).strip() != "":
+                locked_string = int(locked_string_raw)
+            group_gap = int(group_gap_raw)
+            if group_gap < 0:
+                raise ValueError("Field 'group_gap' cannot be negative.")
+            if tab_strategy == "as_selected":
+                tab_strategy = "balanced"
+
             if mode == "notes":
                 raw_note_groups = body.get("note_groups", None)
                 note_groups: list[list[str]] = []
@@ -243,12 +257,37 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                         "No note tokens found. Use formats like E4 F#4 G4."
                     )
 
-                result = self.transcriber.transcribe_notes(notes)
+                preferred_tabs: list[str | None] | None = None
+                if raw_preferred_tabs is not None:
+                    if not isinstance(raw_preferred_tabs, list):
+                        raise ValueError("Field 'preferred_tabs' must be a list.")
+                    preferred_tabs = []
+                    for raw_token in raw_preferred_tabs:
+                        if raw_token is None:
+                            preferred_tabs.append(None)
+                        else:
+                            token = str(raw_token).strip()
+                            preferred_tabs.append(token or None)
+                    if len(preferred_tabs) != len(notes):
+                        raise ValueError(
+                            "Field 'preferred_tabs' must align with the selected notes."
+                        )
+
+                result = self.transcriber.transcribe_notes(
+                    notes,
+                    tab_strategy=tab_strategy,
+                    locked_string=locked_string,
+                    preferred_tabs=preferred_tabs,
+                )
                 group_lengths = [len(group) for group in note_groups]
                 note_groups_payload = _chunk_by_lengths(list(result.notes), group_lengths)
                 tab_groups_payload = _chunk_by_lengths(list(result.tab_tokens), group_lengths)
                 ascii_tab_payload = (
-                    format_ascii_tab(result.tabs, group_lengths=group_lengths)
+                    format_ascii_tab(
+                        result.tabs,
+                        group_lengths=group_lengths,
+                        group_gap=group_gap,
+                    )
                     if len(group_lengths) > 1
                     else result.ascii_tab
                 )

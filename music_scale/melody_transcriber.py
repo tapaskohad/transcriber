@@ -29,6 +29,7 @@ _STANDARD_TUNING_MIDI: dict[int, int] = {
 _NOTE_WITH_OCTAVE_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(\+*)(-?\d+)?\s*$")
 _COMPACT_NOTE_RE = re.compile(r"([A-Ga-g])([#b]?)(\+*)(-?\d+)?")
 _COMPACT_NOTE_CHARS_RE = re.compile(r"^[A-Ga-g#b+\-0-9]+$")
+_TAB_TOKEN_RE = re.compile(r"^\s*([1-6])\s*:\s*(\d+)\s*$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +151,9 @@ class MelodyTranscriber:
         note_tokens: Iterable[str],
         *,
         note_duration_s: float = 0.35,
+        tab_strategy: str = "balanced",
+        locked_string: int | None = None,
+        preferred_tabs: Sequence[str | None] | None = None,
     ) -> MelodyTabResult:
         """Transcribe explicit note tokens (with or without octave) to tabs."""
         if note_duration_s <= 0:
@@ -179,7 +183,12 @@ class MelodyTranscriber:
             )
             current_time += note_duration_s
 
-        tabs = self.map_events_to_tabs(events)
+        tabs = self.map_events_to_tabs(
+            events,
+            tab_strategy=tab_strategy,
+            locked_string=locked_string,
+            preferred_tabs=preferred_tabs,
+        )
         return MelodyTabResult(events=tuple(events), tabs=tabs)
 
     @staticmethod
@@ -291,20 +300,88 @@ class MelodyTranscriber:
         tabs = self.map_events_to_tabs(events)
         return MelodyTabResult(events=tuple(events), tabs=tabs)
 
-    def map_events_to_tabs(self, events: Sequence[MelodyEvent]) -> tuple[TabPosition, ...]:
+    def map_events_to_tabs(
+        self,
+        events: Sequence[MelodyEvent],
+        *,
+        tab_strategy: str = "balanced",
+        locked_string: int | None = None,
+        preferred_tabs: Sequence[str | None] | None = None,
+    ) -> tuple[TabPosition, ...]:
         """Find a smooth guitar fingering path for the melody events."""
         if not events:
             return ()
 
+        strategy = str(tab_strategy).strip().lower() if tab_strategy else "balanced"
+        if strategy not in {"balanced", "low_fret", "single_string"}:
+            raise ValueError("Unsupported tab strategy.")
+
+        if locked_string is not None and locked_string not in {1, 2, 3, 4, 5, 6}:
+            raise ValueError("locked_string must be between 1 and 6.")
+
+        parsed_preferred: list[tuple[int, int] | None] = []
+        if preferred_tabs is not None:
+            if len(preferred_tabs) != len(events):
+                raise ValueError("preferred_tabs must match the number of notes.")
+            for raw in preferred_tabs:
+                if raw is None:
+                    parsed_preferred.append(None)
+                    continue
+                token = str(raw).strip()
+                if not token:
+                    parsed_preferred.append(None)
+                    continue
+                parsed_preferred.append(self._parse_tab_token(token))
+        else:
+            parsed_preferred = [None] * len(events)
+
         candidates_per_event: list[list[TabPosition]] = []
-        for event in events:
+        for index, event in enumerate(events):
             candidates = self._candidate_positions(event.midi)
+            if locked_string is not None:
+                candidates = [
+                    position for position in candidates if position.string_id == locked_string
+                ]
+
+            preferred = parsed_preferred[index]
+            if preferred is not None:
+                preferred_string, preferred_fret = preferred
+                candidates = [
+                    position
+                    for position in candidates
+                    if position.string_id == preferred_string and position.fret == preferred_fret
+                ]
+                if not candidates:
+                    raise ValueError(
+                        f"Preferred tab {preferred_string}:{preferred_fret} does not match note "
+                        f"{event.note_name}."
+                    )
             if not candidates:
                 raise ValueError(
                     f"No playable tab position for {event.note_name} within frets "
                     f"{self.min_fret}-{self.max_fret}."
                 )
             candidates_per_event.append(candidates)
+
+        if strategy == "single_string":
+            if any(item is not None for item in parsed_preferred):
+                raise ValueError(
+                    "single_string strategy cannot be combined with preferred tab positions."
+                )
+            auto_locked = locked_string
+            if auto_locked is None:
+                auto_locked = self._pick_single_string(events)
+            filtered_candidates: list[list[TabPosition]] = []
+            for candidates in candidates_per_event:
+                same_string = [
+                    position for position in candidates if position.string_id == auto_locked
+                ]
+                if not same_string:
+                    raise ValueError(
+                        f"Sequence cannot be played entirely on string {auto_locked}."
+                    )
+                filtered_candidates.append(same_string)
+            candidates_per_event = filtered_candidates
 
         scores: list[list[float]] = [
             [math.inf for _ in event_candidates]
@@ -315,7 +392,7 @@ class MelodyTranscriber:
         ]
 
         for j, position in enumerate(candidates_per_event[0]):
-            scores[0][j] = self._position_cost(position)
+            scores[0][j] = self._position_cost(position, strategy=strategy)
 
         for i in range(1, len(candidates_per_event)):
             current_options = candidates_per_event[i]
@@ -326,7 +403,11 @@ class MelodyTranscriber:
                 for k, previous_position in enumerate(previous_options):
                     candidate_score = (
                         scores[i - 1][k]
-                        + self._transition_cost(previous_position, current_position)
+                        + self._transition_cost(
+                            previous_position,
+                            current_position,
+                            strategy=strategy,
+                        )
                     )
                     if candidate_score < best_score:
                         best_score = candidate_score
@@ -337,7 +418,7 @@ class MelodyTranscriber:
         last_index = min(
             range(len(scores[-1])),
             key=lambda idx: scores[-1][idx]
-            + self._position_cost(candidates_per_event[-1][idx]),
+            + self._position_cost(candidates_per_event[-1][idx], strategy=strategy),
         )
         chosen: list[TabPosition] = []
         current_idx: int | None = last_index
@@ -349,6 +430,13 @@ class MelodyTranscriber:
 
         chosen.reverse()
         return tuple(chosen)
+
+    @staticmethod
+    def _parse_tab_token(token: str) -> tuple[int, int]:
+        match = _TAB_TOKEN_RE.match(token)
+        if match is None:
+            raise ValueError(f"Invalid preferred tab token '{token}'. Use format like 1:0.")
+        return int(match.group(1)), int(match.group(2))
 
     def _parse_note_token(self, token: str) -> tuple[str, int | None, bool]:
         match = _NOTE_WITH_OCTAVE_RE.match(token)
@@ -446,14 +534,53 @@ class MelodyTranscriber:
         return options
 
     @staticmethod
-    def _position_cost(position: TabPosition) -> float:
+    def _position_cost(position: TabPosition, *, strategy: str = "balanced") -> float:
+        if strategy == "low_fret":
+            return 0.22 * position.fret + 0.03 * abs(position.string_id - 2)
         return 0.08 * position.fret + 0.04 * abs(position.string_id - 2)
 
     @staticmethod
-    def _transition_cost(previous: TabPosition, current: TabPosition) -> float:
+    def _transition_cost(
+        previous: TabPosition,
+        current: TabPosition,
+        *,
+        strategy: str = "balanced",
+    ) -> float:
         fret_move = abs(current.fret - previous.fret)
         string_move = abs(current.string_id - previous.string_id)
+        if strategy == "low_fret":
+            return (0.9 * fret_move) + (0.45 * string_move) + (0.12 * current.fret)
         return fret_move + (0.55 * string_move) + (0.05 * current.fret)
+
+    def _pick_single_string(self, events: Sequence[MelodyEvent]) -> int:
+        best_string: int | None = None
+        best_cost = math.inf
+
+        for string_id in (1, 2, 3, 4, 5, 6):
+            positions: list[TabPosition] = []
+            valid = True
+            for event in events:
+                candidates = [
+                    position
+                    for position in self._candidate_positions(event.midi)
+                    if position.string_id == string_id
+                ]
+                if not candidates:
+                    valid = False
+                    break
+                positions.append(candidates[0])
+
+            if not valid or not positions:
+                continue
+
+            cost = sum(position.fret for position in positions)
+            if cost < best_cost:
+                best_cost = cost
+                best_string = string_id
+
+        if best_string is None:
+            raise ValueError("No single string can play every note in this sequence.")
+        return best_string
 
     def _extract_pitch_track(
         self,

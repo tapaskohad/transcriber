@@ -10,7 +10,13 @@ from urllib.request import Request, urlopen
 
 from music_scale.finder import ScaleFinder
 from music_scale.melody_transcriber import MelodyTranscriber
-from music_scale.web_ui import _ScaleRequestHandler, _build_config, _build_html, _build_transcriber_html
+from music_scale.web_ui import (
+    _ScaleRequestHandler,
+    _build_config,
+    _build_html,
+    _build_tab_sequencer_html,
+    _build_transcriber_html,
+)
 
 
 class WebApiTests(unittest.TestCase):
@@ -26,6 +32,7 @@ class WebApiTests(unittest.TestCase):
         handler.transcriber = MelodyTranscriber(max_fret=handler.config["max_fret"])
         handler.html = _build_html().encode("utf-8")
         handler.transcriber_html = _build_transcriber_html().encode("utf-8")
+        handler.tab_sequencer_html = _build_tab_sequencer_html().encode("utf-8")
         handler.max_body_bytes = 8 * 1024
 
         cls._server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -95,6 +102,26 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(payload["selected_notes"], ["C", "E", "G"])
         self.assertEqual(payload["count"], 3)
 
+    def test_tab_sequencer_page_is_available(self) -> None:
+        request = Request(f"{self._base_url}/tab-sequencer", method="GET")
+        with urlopen(request, timeout=4) as response:
+            body = response.read().decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Music Scale Studio", body)
+        self.assertIn("Tab Sequencer", body)
+
+    def test_mode_routes_share_single_shell(self) -> None:
+        pages = ["/", "/transcriber", "/tab-sequencer"]
+        for page in pages:
+            request = Request(f"{self._base_url}{page}", method="GET")
+            with urlopen(request, timeout=4) as response:
+                body = response.read().decode("utf-8")
+            self.assertEqual(response.status, 200)
+            self.assertIn("Music Scale Studio", body)
+            self.assertIn("Scale Finder", body)
+            self.assertIn("Transcriber", body)
+            self.assertIn("Tab Sequencer", body)
+
     def test_transcribe_notes_mode_returns_expected_data(self) -> None:
         status, payload = self._request_json(
             "/api/transcribe",
@@ -105,6 +132,37 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["notes"], ["E4", "F#4", "G4"])
         self.assertEqual(payload["tab_tokens"], ["1:0", "1:2", "1:3"])
+
+    def test_transcribe_notes_mode_supports_tab_strategy_and_group_gap(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["E4"], ["F#4"]],
+                "tab_strategy": "single_string",
+                "locked_string": 1,
+                "group_gap": 5,
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["tab_groups"], [["1:0"], ["1:2"]])
+        ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
+        self.assertIn("-----", ascii_tab)
+
+    def test_transcribe_notes_mode_as_selected_honors_preferred_tabs(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["E4", "E4"]],
+                "tab_strategy": "as_selected",
+                "preferred_tabs": ["1:0", "2:5"],
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["tab_tokens"], ["1:0", "2:5"])
 
     def test_transcribe_notes_mode_preserves_note_groups(self) -> None:
         status, payload = self._request_json(

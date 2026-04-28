@@ -100,6 +100,31 @@ class MelodyTranscriberTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             transcriber.transcribe_notes(["C7"])
 
+    def test_preferred_tabs_force_exact_positions(self) -> None:
+        transcriber = MelodyTranscriber(max_fret=12)
+        result = transcriber.transcribe_notes(
+            ["E4", "E4"],
+            preferred_tabs=["1:0", "2:5"],
+        )
+        self.assertEqual(result.tab_tokens, ("1:0", "2:5"))
+
+    def test_single_string_strategy_keeps_all_positions_on_one_string(self) -> None:
+        transcriber = MelodyTranscriber(max_fret=12)
+        result = transcriber.transcribe_notes(
+            ["E4", "F#4", "G4"],
+            tab_strategy="single_string",
+            locked_string=1,
+        )
+        self.assertTrue(all(token.startswith("1:") for token in result.tab_tokens))
+
+    def test_low_fret_strategy_prefers_lower_position(self) -> None:
+        transcriber = MelodyTranscriber(max_fret=12)
+        balanced = transcriber.transcribe_notes(["B4"], tab_strategy="balanced")
+        low_fret = transcriber.transcribe_notes(["B4"], tab_strategy="low_fret")
+        balanced_fret = int(balanced.tab_tokens[0].split(":")[1])
+        low_fret_fret = int(low_fret.tab_tokens[0].split(":")[1])
+        self.assertLessEqual(low_fret_fret, balanced_fret)
+
 
 if __name__ == "__main__":
     unittest.main()

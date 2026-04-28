@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fretboard Tab Sequencer</title>
+  <script>
+    (function () {
+      const key = "music_scale_theme";
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored === "light" || stored === "dark") {
+          document.documentElement.setAttribute("data-theme", stored);
+          return;
+        }
+      } catch (_error) {}
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      --ink: #152233;
+      --ink-soft: #42556f;
+      --line: #d4deea;
+      --panel: #ffffff;
+      --btn: #f7fbff;
+      --btn-border: #bfd0e3;
+      --focus-ring: rgba(79, 142, 214, 0.45);
+      --violet: #6f5ef2;
+      --violet-strong: #5b48db;
+      --bg-top: #f7f4ef;
+      --bg-bottom: #eef4fb;
+      --sans: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+      --mono: "JetBrains Mono", "Consolas", "Courier New", monospace;
+      --serif: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    }
+
+    html[data-theme="dark"] {
+      --ink: #e5edf7;
+      --ink-soft: #afc3d8;
+      --line: #2a3c52;
+      --panel: #132234;
+      --btn: #1b2d42;
+      --btn-border: #38516b;
+      --focus-ring: rgba(125, 175, 235, 0.55);
+      --violet: #7f72ff;
+      --violet-strong: #654eff;
+      --bg-top: #0c1724;
+      --bg-bottom: #122334;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(1000px 560px at -8% 0%, rgba(29, 144, 120, 0.2), transparent 68%),
+        radial-gradient(980px 520px at 100% -18%, rgba(204, 122, 59, 0.17), transparent 67%),
+        linear-gradient(170deg, var(--bg-top) 0%, #f1f4fa 54%, var(--bg-bottom) 100%);
+    }
+
+    .wrap {
+      width: min(1320px, calc(100% - 42px));
+      margin: 24px auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero, .panel {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 14px 30px rgba(21, 39, 64, 0.12);
+    }
+
+    .hero {
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    h1, h2 {
+      margin: 0;
+      font-family: var(--serif);
+      letter-spacing: 0.02em;
+    }
+
+    h1 { font-size: clamp(1.6rem, 2.4vw, 2.1rem); }
+    h2 { font-size: clamp(1.35rem, 1.9vw, 1.9rem); }
+
+    .subtitle { margin: 4px 0 0; color: var(--ink-soft); }
+    .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .btn, .link-btn, .fret-btn, .sequence-editor {
+      border: 1px solid var(--btn-border);
+      border-radius: 14px;
+      background: linear-gradient(160deg, #ffffff 0%, var(--btn) 100%);
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+
+    .btn, .link-btn {
+      min-height: 44px;
+      padding: 0 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .link-btn {
+      color: #ffffff;
+      border-color: transparent;
+      background: linear-gradient(145deg, var(--violet), var(--violet-strong));
+    }
+
+    .panel { padding: 14px; display: grid; gap: 10px; }
+    .status { margin: 0; color: var(--ink-soft); font-weight: 700; }
+
+    .sequence-editor {
+      width: 100%;
+      min-height: 98px;
+      padding: 10px;
+      border-radius: 12px;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      line-height: 1.4;
+      resize: vertical;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .control-row label {
+      font-size: 0.83rem;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .control-row select {
+      border: 1px solid var(--btn-border);
+      border-radius: 10px;
+      min-height: 38px;
+      padding: 0 10px;
+      background: linear-gradient(160deg, #ffffff 0%, var(--btn) 100%);
+      color: var(--ink);
+    }
+
+    .sequence {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      background: color-mix(in srgb, var(--panel) 86%, transparent 14%);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .fretboard-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    th, td {
+      padding: 6px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      text-align: left;
+      min-width: 122px;
+      font-weight: 700;
+      background: color-mix(in srgb, var(--panel) 92%, transparent 8%);
+    }
+
+    .fret-btn {
+      width: 100%;
+      min-height: 36px;
+      padding: 5px 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.12s ease;
+    }
+
+    .fret-btn:hover { transform: translateY(-1px); }
+
+    .output-tab {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 86%, transparent 14%);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    @media (max-width: 760px) {
+      .wrap { width: calc(100% - 16px); margin-top: 10px; }
+      .panel, .hero { border-radius: 14px; }
+      .btn, .link-btn { min-height: 40px; font-size: 0.86rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Fretboard Tab Sequencer</h1>
+        <p class="subtitle">Click frets in order, edit the sequence directly, then update tabs.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="link-btn" href="/">Scale Finder</a>
+        <a class="link-btn" href="/transcriber">Transcriber</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Selected Sequence</h2>
+      <p id="status" class="status">Loading configuration...</p>
+      <textarea id="sequenceEditor" class="sequence-editor" spellcheck="false"></textarea>
+      <div class="hero-actions">
+        <button id="updateBtn" class="btn" type="button">Update Tabs</button>
+        <button id="copyBtn" class="btn" type="button">Copy</button>
+        <button id="pasteBtn" class="btn" type="button">Paste</button>
+        <button id="undoBtn" class="btn" type="button">Undo</button>
+        <button id="clearBtn" class="btn" type="button">Clear</button>
+        <button id="spaceBtn" class="btn" type="button">Space (-----)</button>
+        <button id="nextLineBtn" class="btn" type="button">Next Line</button>
+      </div>
+      <div class="control-row">
+        <label for="tabStrategy">Tab Strategy</label>
+        <select id="tabStrategy">
+          <option value="as_selected">As Selected (Default)</option>
+          <option value="balanced">Balanced</option>
+          <option value="low_fret">Prefer Low Fret Movement</option>
+          <option value="single_string">Lock One String (Auto)</option>
+        </select>
+        <label for="lockedString">String</label>
+        <select id="lockedString">
+          <option value="">Auto</option>
+          <option value="1">1 (E4)</option>
+          <option value="2">2 (B3)</option>
+          <option value="3">3 (G3)</option>
+          <option value="4">4 (D3)</option>
+          <option value="5">5 (A2)</option>
+          <option value="6">6 (E2)</option>
+        </select>
+      </div>
+      <p class="status">Use token format `E4@1:0`. `@string:fret` is optional but keeps exact selected position.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Fretboard (Standard Tuning)</h2>
+      <div class="fretboard-scroll">
+        <table>
+          <thead id="fretHead"></thead>
+          <tbody id="fretBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Generated Tabs</h2>
+      <p id="tabTokens" class="sequence">Tabs: -</p>
+      <pre id="asciiTab" class="output-tab">-</pre>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const NOTE_TOKEN_RE = /^([A-Ga-g])([#b]?)(-?\d+)(?:@([1-6]:\d+))?$/;
+      let config = null;
+      let requestToken = 0;
+
+      const statusEl = document.getElementById("status");
+      const sequenceEditorEl = document.getElementById("sequenceEditor");
+      const updateBtn = document.getElementById("updateBtn");
+      const copyBtn = document.getElementById("copyBtn");
+      const pasteBtn = document.getElementById("pasteBtn");
+      const undoBtn = document.getElementById("undoBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const spaceBtn = document.getElementById("spaceBtn");
+      const nextLineBtn = document.getElementById("nextLineBtn");
+      const tabTokensEl = document.getElementById("tabTokens");
+      const asciiTabEl = document.getElementById("asciiTab");
+      const tabStrategyEl = document.getElementById("tabStrategy");
+      const lockedStringEl = document.getElementById("lockedString");
+      const fretHead = document.getElementById("fretHead");
+      const fretBody = document.getElementById("fretBody");
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      function normalizeNote(note) {
+        const letter = note[0].toUpperCase();
+        const accidental = note.length > 2 ? note.slice(1, -1) : (note.length === 2 && Number.isNaN(Number(note[1])) ? note[1] : "");
+        const octave = note.match(/-?\d+$/);
+        return letter + accidental + (octave ? octave[0] : "");
+      }
+
+      function parseSequenceEditor(text) {
+        const trimmed = String(text || "").trim();
+        if (!trimmed) {
+          return [];
+        }
+        const noBraces = trimmed.replace(/^\{/, "").replace(/\}$/, "").trim();
+        if (!noBraces) {
+          return [];
+        }
+
+        const groups = [];
+        const lines = noBraces.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        for (const line of lines) {
+          const chunks = line.split("||").map((chunk) => chunk.trim()).filter(Boolean);
+          for (const chunk of chunks) {
+            const tokens = chunk.split("->").map((token) => token.trim()).filter(Boolean);
+            if (tokens.length === 0) {
+              continue;
+            }
+            const group = [];
+            for (const token of tokens) {
+              const match = token.match(NOTE_TOKEN_RE);
+              if (!match) {
+                throw new Error("Invalid token '" + token + "'. Use E4 or E4@1:0.");
+              }
+              const note = normalizeNote(match[1] + (match[2] || "") + match[3]);
+              const preferred = match[4] || null;
+              group.push({ note, preferred });
+            }
+            groups.push(group);
+          }
+        }
+        return groups;
+      }
+
+      function serializeGroups(groups) {
+        if (!groups || groups.length === 0) {
+          return "";
+        }
+        const chunks = groups.map((group) =>
+          group.map((item) => item.note + (item.preferred ? "@" + item.preferred : "")).join(" -> ")
+        );
+        return chunks.join(" || ");
+      }
+
+      function setEditorFromGroups(groups) {
+        sequenceEditorEl.value = serializeGroups(groups);
+      }
+
+      function appendTokenFromClick(noteName, stringId, fret) {
+        const token = noteName + "@" + String(stringId) + ":" + String(fret);
+        const base = sequenceEditorEl.value.replace(/\s+$/g, "");
+        if (!base) {
+          sequenceEditorEl.value = token;
+          return;
+        }
+        if (/(?:\|\||->)$/.test(base)) {
+          sequenceEditorEl.value = base + " " + token;
+          return;
+        }
+        sequenceEditorEl.value = base + " -> " + token;
+      }
+
+      function splitLastGroupWithSpace() {
+        const base = sequenceEditorEl.value.replace(/\s+$/g, "");
+        if (!base || /(?:\|\||->)$/.test(base)) {
+          return;
+        }
+        sequenceEditorEl.value = base + " || ";
+      }
+
+      function splitLastGroupWithLine() {
+        const base = sequenceEditorEl.value.replace(/\s+$/g, "");
+        if (!base || /(?:\|\||->)$/.test(base)) {
+          return;
+        }
+        sequenceEditorEl.value = base + " ||\n";
+      }
+
+      function undoLastToken() {
+        let groups = parseSequenceEditor(sequenceEditorEl.value);
+        if (groups.length === 0) {
+          return;
+        }
+        for (let i = groups.length - 1; i >= 0; i -= 1) {
+          if (groups[i].length > 0) {
+            groups[i].pop();
+            break;
+          }
+        }
+        groups = groups.filter((group) => group.length > 0);
+        setEditorFromGroups(groups);
+      }
+
+      async function copyEditor() {
+        try {
+          await navigator.clipboard.writeText(sequenceEditorEl.value);
+          setStatus("Sequence copied.");
+        } catch (_error) {
+          setStatus("Copy failed. Browser clipboard access is blocked.");
+        }
+      }
+
+      async function pasteEditor() {
+        try {
+          const pasted = await navigator.clipboard.readText();
+          sequenceEditorEl.value = pasted;
+          setStatus("Pasted. Click Update Tabs.");
+        } catch (_error) {
+          setStatus("Paste failed. Browser clipboard access is blocked.");
+        }
+      }
+
+      async function refreshTabsFromEditor() {
+        if (!config) {
+          return;
+        }
+
+        let groups;
+        try {
+          groups = parseSequenceEditor(sequenceEditorEl.value);
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Invalid sequence.");
+          return;
+        }
+
+        if (groups.length === 0) {
+          tabTokensEl.textContent = "Tabs: -";
+          asciiTabEl.textContent = "-";
+          setStatus("No notes in sequence.");
+          return;
+        }
+
+        const noteGroups = groups.map((group) => group.map((item) => item.note));
+        const preferredTabs = [];
+        for (const group of groups) {
+          for (const item of group) {
+            preferredTabs.push(item.preferred);
+          }
+        }
+
+        const strategy = tabStrategyEl.value || "as_selected";
+        const requestBody = {
+          mode: "notes",
+          note_groups: noteGroups,
+          tab_strategy: strategy,
+          locked_string: lockedStringEl.value || null,
+          group_gap: 5,
+        };
+        if (strategy === "as_selected") {
+          requestBody.preferred_tabs = preferredTabs;
+        }
+
+        const token = ++requestToken;
+        setStatus("Generating tabs...");
+        try {
+          const response = await fetch("/api/transcribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          const payload = await response.json();
+
+          if (token !== requestToken) {
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(payload && payload.error ? payload.error : "Failed to generate tabs.");
+          }
+
+          const tabs = Array.isArray(payload.tab_tokens) ? payload.tab_tokens : [];
+          tabTokensEl.textContent = "Tabs: " + (tabs.length > 0 ? tabs.join(" ") : "-");
+          asciiTabEl.textContent = payload.ascii_tab || "-";
+          setStatus("Generated " + tabs.length + " tab positions.");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Connection error.");
+        }
+      }
+
+      function renderFretboard() {
+        fretHead.innerHTML = "";
+        fretBody.innerHTML = "";
+
+        const headRow = document.createElement("tr");
+        const firstHead = document.createElement("th");
+        firstHead.textContent = "String / Fret";
+        headRow.appendChild(firstHead);
+
+        for (let fret = 0; fret <= config.max_fret; fret += 1) {
+          const th = document.createElement("th");
+          th.textContent = String(fret);
+          headRow.appendChild(th);
+        }
+        fretHead.appendChild(headRow);
+
+        for (const row of config.strings) {
+          const tr = document.createElement("tr");
+          const label = document.createElement("td");
+          label.textContent = row.string + " (" + row.open_note_name + ")";
+          tr.appendChild(label);
+
+          for (const fretData of row.frets) {
+            const td = document.createElement("td");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "fret-btn";
+            button.textContent = fretData.note;
+            button.title = row.string + " fret " + fretData.fret + " -> " + fretData.note_name;
+            button.addEventListener("click", () => {
+              appendTokenFromClick(fretData.note_name, row.string, fretData.fret);
+              void refreshTabsFromEditor();
+            });
+            td.appendChild(button);
+            tr.appendChild(td);
+          }
+
+          fretBody.appendChild(tr);
+        }
+      }
+
+      async function init() {
+        const allButtons = [updateBtn, copyBtn, pasteBtn, undoBtn, clearBtn, spaceBtn, nextLineBtn];
+        for (const button of allButtons) {
+          button.disabled = true;
+        }
+
+        sequenceEditorEl.value = "";
+        updateBtn.addEventListener("click", () => { void refreshTabsFromEditor(); });
+        copyBtn.addEventListener("click", () => { void copyEditor(); });
+        pasteBtn.addEventListener("click", () => { void pasteEditor(); });
+        undoBtn.addEventListener("click", () => {
+          undoLastToken();
+          void refreshTabsFromEditor();
+        });
+        clearBtn.addEventListener("click", () => {
+          sequenceEditorEl.value = "";
+          void refreshTabsFromEditor();
+        });
+        spaceBtn.addEventListener("click", () => {
+          try {
+            splitLastGroupWithSpace();
+            void refreshTabsFromEditor();
+          } catch (error) {
+            setStatus(error instanceof Error ? error.message : "Invalid sequence.");
+          }
+        });
+        nextLineBtn.addEventListener("click", () => {
+          try {
+            splitLastGroupWithLine();
+          } catch (error) {
+            setStatus(error instanceof Error ? error.message : "Invalid sequence.");
+          }
+        });
+        tabStrategyEl.addEventListener("change", () => { void refreshTabsFromEditor(); });
+        lockedStringEl.addEventListener("change", () => { void refreshTabsFromEditor(); });
+
+        try {
+          const response = await fetch("/api/config");
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload && payload.error ? payload.error : "Failed to load configuration.");
+          }
+
+          config = payload;
+          renderFretboard();
+          setStatus("Ready. Click frets or edit tokens, then update tabs.");
+          for (const button of allButtons) {
+            button.disabled = false;
+          }
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Failed to initialize page.");
+        }
+      }
+
+      void init();
+    })();
+  </script>
+</body>
+</html>

@@ -27,10 +27,13 @@
       --ink-soft: #42556f;
       --line: #d4deea;
       --panel: #ffffff;
+      --focus-ring: rgba(79, 142, 214, 0.45);
       --accent: #1d9078;
       --accent-strong: #167562;
       --accent-warm: #cc7a3b;
       --accent-warm-strong: #b16428;
+      --violet: #6f5ef2;
+      --violet-strong: #5b48db;
       --surface: #f7f4ef;
       --surface-alt: #eef4fb;
       --mono: "JetBrains Mono", "Consolas", "Courier New", monospace;
@@ -43,12 +46,15 @@
       --ink-soft: #9cb0c7;
       --line: #2a3c52;
       --panel: #132234;
+      --focus-ring: rgba(125, 175, 235, 0.55);
       --surface: #0c1724;
       --surface-alt: #122334;
       --accent: #43c1a2;
       --accent-strong: #2ea58a;
       --accent-warm: #d6904f;
       --accent-warm-strong: #bf7639;
+      --violet: #7f72ff;
+      --violet-strong: #654eff;
     }
 
     * { box-sizing: border-box; }
@@ -58,6 +64,9 @@
       min-height: 100vh;
       color: var(--ink-strong);
       font-family: var(--sans);
+      position: relative;
+      isolation: isolate;
+      overflow-x: hidden;
       background:
         radial-gradient(1000px 560px at -8% 0%, rgba(29, 144, 120, 0.24), transparent 68%),
         radial-gradient(980px 520px at 100% -18%, rgba(204, 122, 59, 0.19), transparent 67%),
@@ -65,11 +74,39 @@
       transition: background-color 0.28s ease, color 0.28s ease;
     }
 
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.02;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(255, 255, 255, 0.1) 0 1px,
+          transparent 1px 3px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          rgba(15, 23, 42, 0.05) 0 1px,
+          transparent 1px 4px
+        ),
+        radial-gradient(
+          1200px 620px at 20% -10%,
+          rgba(255, 255, 255, 0.26),
+          transparent 65%
+        );
+      mix-blend-mode: soft-light;
+    }
+
     .wrap {
-      width: min(1080px, calc(100% - 24px));
-      margin: 18px auto 24px;
+      width: min(1320px, calc(100% - 42px));
+      margin: 24px auto 24px;
       display: grid;
       gap: 14px;
+      position: relative;
+      z-index: 1;
     }
 
     .hero,
@@ -81,7 +118,7 @@
     }
 
     .hero {
-      padding: 16px 18px;
+      padding: 18px 20px;
       display: grid;
       gap: 8px;
     }
@@ -99,6 +136,27 @@
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .hero-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 220px;
+    }
+
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #ffffff;
+      background: linear-gradient(145deg, var(--violet), var(--violet-strong));
+      box-shadow: 0 8px 18px rgba(95, 80, 213, 0.3);
+      flex: 0 0 auto;
     }
 
     .eyebrow {
@@ -126,16 +184,16 @@
     }
 
     .theme-toggle,
-    .sound-toggle {
-      min-height: 34px;
+    .sound-toggle,
+    .link-btn {
+      min-height: 50px;
       border: 1px solid #bfd0e3;
-      border-radius: 999px;
-      padding: 0 12px;
-      font-size: 0.73rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #203148;
+      border-radius: 18px;
+      padding: 0 22px;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: #152233;
       background: linear-gradient(160deg, #fefefe 0%, #eff4fb 100%);
       box-shadow: 0 4px 10px rgba(25, 45, 72, 0.08);
       transition: transform 0.16s ease, border-color 0.16s ease;
@@ -147,9 +205,31 @@
     }
 
     .theme-toggle:hover,
-    .sound-toggle:hover {
+    .sound-toggle:hover,
+    .link-btn:hover {
       transform: translateY(-1px);
       border-color: #9eb7d3;
+    }
+
+    .theme-toggle:focus-visible,
+    .sound-toggle:focus-visible,
+    .link-btn:focus-visible,
+    .action-btn:focus-visible,
+    .control-select:focus-visible,
+    .transcribe-input:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .theme-toggle {
+      border-color: color-mix(in srgb, #bfd0e3 80%, #ffffff 20%);
+    }
+
+    .link-btn {
+      color: #ffffff;
+      border-color: transparent;
+      background: linear-gradient(145deg, var(--violet) 0%, var(--violet-strong) 100%);
+      box-shadow: 0 8px 18px rgba(95, 80, 213, 0.34);
     }
 
     .sound-toggle {
@@ -164,6 +244,57 @@
       border-color: #567490;
       background: linear-gradient(145deg, #5f7e98 0%, #49647b 100%);
       box-shadow: 0 6px 12px rgba(52, 73, 93, 0.32);
+    }
+
+    .hero-meters {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .meter-card {
+      border: 1px solid #d7e2ef;
+      border-radius: 14px;
+      background: #f7fbff;
+      padding: 8px 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .meter-label {
+      margin: 0;
+      color: #4e6680;
+      font-size: 0.77rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .meter-track {
+      border: 1px solid #cddff1;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+      background: #edf5fe;
+    }
+
+    .meter-fill,
+    .meter-fill.warm {
+      display: block;
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent) 0%, #33b294 100%);
+      transition: width 0.24s ease;
+    }
+
+    .meter-fill.warm {
+      background: linear-gradient(90deg, var(--accent-warm) 0%, #dd8c4d 100%);
+    }
+
+    .counter-secondary {
+      color: #8f4f1f;
     }
 
     .counter {
@@ -187,8 +318,10 @@
 
     .panel-title {
       margin: 0;
-      font-size: 0.98rem;
+      font-family: var(--serif);
+      font-size: clamp(1.35rem, 1.9vw, 1.9rem);
       letter-spacing: 0.02em;
+      line-height: 1.1;
     }
 
     .control-label {
@@ -219,16 +352,15 @@
     }
 
     .action-btn {
-      min-height: 38px;
+      min-height: 44px;
       border: 1px solid var(--accent-strong);
-      border-radius: 10px;
+      border-radius: 14px;
       background: linear-gradient(140deg, var(--accent) 0%, #33b294 100%);
       color: #ffffff;
       font-family: var(--sans);
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      font-size: 0.93rem;
+      font-weight: 600;
+      letter-spacing: 0;
       cursor: pointer;
       padding: 0 12px;
     }
@@ -342,6 +474,13 @@
       box-shadow: 0 5px 14px rgba(2, 7, 14, 0.42);
     }
 
+    html[data-theme="dark"] .link-btn {
+      color: #ffffff;
+      border-color: transparent;
+      background: linear-gradient(145deg, var(--violet) 0%, var(--violet-strong) 100%);
+      box-shadow: 0 8px 16px rgba(22, 10, 66, 0.46);
+    }
+
     html[data-theme="dark"] .sound-toggle {
       color: #ffffff;
       border-color: #bf7639;
@@ -359,6 +498,24 @@
       color: #c2d6ec;
       background: #1b3147;
       border-color: #35516d;
+    }
+
+    html[data-theme="dark"] .counter-secondary {
+      color: #f1b37f;
+    }
+
+    html[data-theme="dark"] .meter-card {
+      border-color: #38506a;
+      background: rgba(15, 26, 38, 0.92);
+    }
+
+    html[data-theme="dark"] .meter-label {
+      color: #9ab0c7;
+    }
+
+    html[data-theme="dark"] .meter-track {
+      border-color: #36516f;
+      background: #172a3e;
     }
 
     html[data-theme="dark"] .control-label {
@@ -404,178 +561,11 @@
       .wrap { width: calc(100% - 16px); margin-top: 10px; }
       .panel { padding: 11px; border-radius: 14px; }
       .counter { font-size: 0.7rem; }
-    }
-  
-        /* UI Explorations v2.0 - soft neumorphic skin */
-    :root {
-      --ink-strong: #49535f;
-      --ink-soft: #7e8894;
-      --line: #d3dae3;
-      --panel: #edf1f5;
-      --accent: #ff9a4a;
-      --accent-strong: #e27c2d;
-      --accent-warm: #ff9a4a;
-      --accent-warm-strong: #d56f22;
-      --surface: #e9edf2;
-      --surface-alt: #f3f6f9;
-      --mono: "JetBrains Mono", "Consolas", "Courier New", monospace;
-      --sans: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
-      --serif: "Palatino Linotype", "Book Antiqua", Georgia, serif;
-    }
-
-    html[data-theme="dark"] {
-      --ink-strong: #d4deea;
-      --ink-soft: #8c9bb0;
-      --line: #2e3d52;
-      --panel: #152233;
-      --surface: #0d1724;
-      --surface-alt: #131f2f;
-      --accent: #ff9a4a;
-      --accent-strong: #f08a3a;
-      --accent-warm: #ff9a4a;
-      --accent-warm-strong: #e97f2c;
-    }
-
-    body {
-      background:
-        radial-gradient(980px 560px at -8% -10%, rgba(255, 193, 137, 0.25), transparent 66%),
-        radial-gradient(930px 520px at 102% -18%, rgba(209, 218, 230, 0.56), transparent 68%),
-        linear-gradient(168deg, var(--surface) 0%, #eef2f6 55%, var(--surface-alt) 100%);
-    }
-
-    html[data-theme="dark"] body {
-      background:
-        radial-gradient(1000px 560px at -8% 0%, rgba(240, 138, 58, 0.12), transparent 68%),
-        radial-gradient(980px 520px at 100% -18%, rgba(83, 113, 150, 0.24), transparent 67%),
-        linear-gradient(170deg, var(--surface) 0%, #101b2a 54%, var(--surface-alt) 100%);
-    }
-
-    .hero,
-    .panel {
-      border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow:
-        12px 12px 24px rgba(173, 181, 191, 0.42),
-        -12px -12px 24px rgba(255, 255, 255, 0.88),
-        inset 1px 1px 0 rgba(255, 255, 255, 0.86);
-      background: var(--panel);
-    }
-
-    html[data-theme="dark"] .hero,
-    html[data-theme="dark"] .panel {
-      border-color: #243246;
-      box-shadow:
-        12px 12px 24px rgba(7, 11, 17, 0.45),
-        -12px -12px 24px rgba(26, 38, 56, 0.35),
-        inset 1px 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .hero { border-radius: 34px; }
-    .eyebrow { color: var(--ink-soft); letter-spacing: 0.13em; }
-    h1 { color: var(--ink-strong); text-shadow: none; font-style: italic; }
-    .subtitle { color: var(--ink-soft); }
-
-    .theme-toggle,
-    .sound-toggle,
-    .action-btn {
-      color: var(--ink-strong);
-      border: 1px solid #c9d1db;
-      background: linear-gradient(145deg, #f2f5f8 0%, #e7ebf1 100%);
-      box-shadow:
-        5px 5px 10px rgba(172, 180, 190, 0.42),
-        -5px -5px 10px rgba(255, 255, 255, 0.82);
-      letter-spacing: 0.08em;
-    }
-
-    html[data-theme="dark"] .theme-toggle,
-    html[data-theme="dark"] .sound-toggle,
-    html[data-theme="dark"] .action-btn {
-      color: #d8e0ea;
-      border-color: #2f3f54;
-      background: linear-gradient(145deg, #1a2738 0%, #131f2f 100%);
-      box-shadow:
-        5px 5px 10px rgba(8, 13, 20, 0.46),
-        -5px -5px 10px rgba(31, 45, 64, 0.35);
-    }
-
-    .sound-toggle,
-    .action-btn {
-      color: var(--accent-strong);
-      border-color: rgba(226, 124, 45, 0.55);
-    }
-
-    .sound-toggle.muted {
-      color: #8f98a4;
-      border-color: #ccd3dc;
-    }
-
-    .hero-meters {
-      margin-top: 6px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .meter-card {
-      border: 1px solid #d7dde5;
-      background: #edf1f5;
-      box-shadow:
-        inset 1px 1px 0 rgba(255, 255, 255, 0.86),
-        inset -1px -1px 0 rgba(181, 188, 197, 0.2);
-      border-radius: 14px;
-      padding: 8px 10px;
-      display: grid;
-      gap: 6px;
-    }
-
-    .meter-label { color: #8b95a0; }
-
-    .meter-track {
-      border: 1px solid #d2d9e2;
-      background: #e4e8ee;
-      box-shadow: inset 2px 2px 5px rgba(167, 176, 188, 0.33);
-      border-radius: 999px;
-      height: 8px;
-      overflow: hidden;
-    }
-
-    .meter-fill,
-    .meter-fill.warm {
-      display: block;
-      width: 0%;
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #ff8d3b 0%, #ffae6d 100%);
-      box-shadow: 0 0 8px rgba(255, 141, 59, 0.45);
-      transition: width 0.24s ease;
-    }
-
-    .counter { color: #6f7a86; font-size: 0.7rem; letter-spacing: 0.1em; background: transparent; border: none; padding: 0; }
-    .counter-secondary { color: var(--accent-strong); }
-
-    .panel-title,
-    .control-label { color: #505962; }
-
-    .control-select,
-    .transcribe-input,
-    .output,
-    .events,
-    .output-tab {
-      border: 1px solid #cfd6df;
-      color: #646e79;
-      background: linear-gradient(145deg, #f1f4f8 0%, #e7ebf1 100%);
-      box-shadow:
-        6px 6px 12px rgba(172, 180, 190, 0.2),
-        -6px -6px 12px rgba(255, 255, 255, 0.55);
-    }
-
-    .hint,
-    .output-row,
-    .event-item { color: #8a949f; }
-
-    .event-item { border-bottom-color: #dde3ea; }
-
-    @media (max-width: 780px) {
       .hero-meters { grid-template-columns: 1fr; }
+      .theme-toggle,
+      .sound-toggle,
+      .link-btn { min-height: 44px; padding: 0 16px; font-size: 0.93rem; }
+      .brand-mark { width: 40px; height: 40px; font-size: 1.2rem; }
     }
   </style>
 </head>
@@ -583,11 +573,15 @@
   <div class="wrap">
     <header class="hero">
       <div class="hero-top">
-        <p class="eyebrow">Studio Assistant</p>
+        <div class="hero-brand">
+          <span class="brand-mark" aria-hidden="true">♪</span>
+          <p class="eyebrow">Studio Assistant</p>
+        </div>
         <div class="hero-actions">
           <button id="soundToggle" class="sound-toggle" type="button">Sound On</button>
-          <button id="themeToggle" class="theme-toggle" type="button">Dark Mode</button>
-          <a class="theme-toggle" href="/">Scale Architect</a>
+          <button id="themeToggle" class="theme-toggle" type="button">Dark</button>
+          <a class="link-btn" href="/">Scale Architect</a>
+          <a class="link-btn" href="/tab-sequencer">Tab Sequencer</a>
         </div>
       </div>
       <h1>Melody Transcriber</h1>
@@ -732,10 +726,10 @@
     function applyTheme(theme) {
       document.documentElement.setAttribute("data-theme", theme);
       if (theme === "dark") {
-        themeToggleEl.textContent = "Light Mode";
+        themeToggleEl.textContent = "Light";
         themeToggleEl.setAttribute("aria-label", "Switch to light mode");
       } else {
-        themeToggleEl.textContent = "Dark Mode";
+        themeToggleEl.textContent = "Dark";
         themeToggleEl.setAttribute("aria-label", "Switch to dark mode");
       }
     }
