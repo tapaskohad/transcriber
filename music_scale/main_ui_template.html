@@ -659,6 +659,8 @@
           <textarea id="transInput" class="text-area" placeholder="Notes: E4 F#4 G4&#10;Frequencies: 440 493.88 523.25&#10;WAV: C:\path\to\melody.wav"></textarea>
         </div>
         <div class="row">
+          <button id="transOctaveDownBtn" class="btn" type="button" aria-label="Shift notes down one octave">Octave -</button>
+          <button id="transOctaveUpBtn" class="btn" type="button" aria-label="Shift notes up one octave">Octave +</button>
           <button id="transcribeBtn" class="btn" type="button">Transcribe</button>
         </div>
         <p id="transStatus" class="status">Ready.</p>
@@ -790,6 +792,8 @@
       const transEls = {
         mode: document.getElementById("transMode"),
         input: document.getElementById("transInput"),
+        octaveDownBtn: document.getElementById("transOctaveDownBtn"),
+        octaveUpBtn: document.getElementById("transOctaveUpBtn"),
         button: document.getElementById("transcribeBtn"),
         status: document.getElementById("transStatus"),
         summary: document.getElementById("transSummary"),
@@ -1115,6 +1119,63 @@
       function persistTranscriberInputs() {
         writeText(KEYS.transMode, transEls.mode.value || "notes");
         writeText(KEYS.transInput, transEls.input.value || "");
+      }
+
+      function shiftTranscriberOctave(delta) {
+        if ((transEls.mode.value || "notes") !== "notes") {
+          setTransStatus("Octave controls are available in Note Tokens mode only.", "warn");
+          return;
+        }
+
+        const raw = transEls.input.value || "";
+        const groups = tokenizeInputByLine(raw);
+        if (groups.length === 0) {
+          setTransStatus("Enter note tokens first.", "warn");
+          return;
+        }
+
+        let shiftedCount = 0;
+        const shiftedGroups = groups.map((group) =>
+          group.map((token) => {
+            const match = token.match(/^([A-Ga-g])([#b]?)(\+*)(-?\d+)?$/);
+            if (!match) {
+              return token;
+            }
+
+            const letter = match[1].toUpperCase();
+            const accidental = match[2] || "";
+            const plusMarks = match[3] || "";
+            const octaveRaw = match[4];
+
+            if (octaveRaw === undefined && plusMarks.length === 0) {
+              return token;
+            }
+
+            const baseOctave = octaveRaw !== undefined
+              ? Number.parseInt(octaveRaw, 10)
+              : (4 + plusMarks.length);
+
+            if (!Number.isFinite(baseOctave)) {
+              return token;
+            }
+
+            shiftedCount += 1;
+            return letter + accidental + String(baseOctave + delta);
+          })
+        );
+
+        if (shiftedCount === 0) {
+          setTransStatus("No shiftable octave tokens found.", "warn");
+          return;
+        }
+
+        transEls.input.value = shiftedGroups.map((group) => group.join(" ")).join("\n");
+        persistTranscriberInputs();
+        setTransStatus(
+          "Shifted " + shiftedCount + " note" + (shiftedCount === 1 ? "" : "s") +
+          (delta > 0 ? " up" : " down") + " by one octave.",
+          "ok"
+        );
       }
 
       async function runTranscription() {
@@ -1450,6 +1511,8 @@
 
         transEls.mode.addEventListener("change", persistTranscriberInputs);
         transEls.input.addEventListener("input", persistTranscriberInputs);
+        transEls.octaveDownBtn.addEventListener("click", () => shiftTranscriberOctave(-1));
+        transEls.octaveUpBtn.addEventListener("click", () => shiftTranscriberOctave(1));
         transEls.button.addEventListener("click", () => {
           void runTranscription();
         });
