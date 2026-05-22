@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .finder import ScaleFinder
-from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name
+from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name, parse_tab_position
 from .melody_transcriber import MelodyTranscriber, format_ascii_tab
 from .notes import CHROMATIC_NOTES, normalize_many
 from .scales import COMMON_SCALE_PATTERNS
@@ -229,6 +229,31 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             if mode == "notes":
                 raw_note_groups = body.get("note_groups", None)
                 note_groups: list[list[str]] = []
+                derived_preferred_tabs: list[str | None] = []
+
+                def _collect_note_group(raw_group: list[Any]) -> None:
+                    group_tokens: list[str] = []
+                    group_preferred_tabs: list[str | None] = []
+
+                    for raw_token in raw_group:
+                        token = str(raw_token).strip()
+                        if not token:
+                            continue
+
+                        try:
+                            string_id, fret = parse_tab_position(token)
+                        except ValueError:
+                            extracted = self.transcriber.filter_note_tokens([token])
+                            for extracted_token in extracted:
+                                group_tokens.append(extracted_token)
+                                group_preferred_tabs.append(None)
+                        else:
+                            group_tokens.append(fret_to_note_name(string_id, fret))
+                            group_preferred_tabs.append(f"{string_id}:{fret}")
+
+                    if group_tokens:
+                        note_groups.append(group_tokens)
+                        derived_preferred_tabs.extend(group_preferred_tabs)
 
                 if raw_note_groups is not None:
                     if not isinstance(raw_note_groups, list):
@@ -236,20 +261,12 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                     for raw_group in raw_note_groups:
                         if not isinstance(raw_group, list):
                             raise ValueError("Field 'note_groups' must be a list of note lists.")
-                        filtered_group = self.transcriber.filter_note_tokens(
-                            str(token) for token in raw_group
-                        )
-                        if filtered_group:
-                            note_groups.append(filtered_group)
+                        _collect_note_group(raw_group)
                 else:
                     raw_notes = body.get("notes", [])
                     if not isinstance(raw_notes, list):
                         raise ValueError("Field 'notes' must be a list.")
-                    filtered_notes = self.transcriber.filter_note_tokens(
-                        str(token) for token in raw_notes
-                    )
-                    if filtered_notes:
-                        note_groups.append(filtered_notes)
+                    _collect_note_group(raw_notes)
 
                 notes = [token for group in note_groups for token in group]
                 if not notes:
@@ -272,6 +289,8 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                         raise ValueError(
                             "Field 'preferred_tabs' must align with the selected notes."
                         )
+                elif any(token is not None for token in derived_preferred_tabs):
+                    preferred_tabs = derived_preferred_tabs
 
                 result = self.transcriber.transcribe_notes(
                     notes,

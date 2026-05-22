@@ -661,6 +661,8 @@
         <div class="row">
           <button id="transOctaveDownBtn" class="btn" type="button" aria-label="Shift notes down one octave">Octave -</button>
           <button id="transOctaveUpBtn" class="btn" type="button" aria-label="Shift notes up one octave">Octave +</button>
+          <button id="transStepDownBtn" class="btn" type="button" aria-label="Shift notes down one step">Step -</button>
+          <button id="transStepUpBtn" class="btn" type="button" aria-label="Shift notes up one step">Step +</button>
           <button id="transcribeBtn" class="btn" type="button">Transcribe</button>
         </div>
         <p id="transStatus" class="status">Ready.</p>
@@ -794,6 +796,8 @@
         input: document.getElementById("transInput"),
         octaveDownBtn: document.getElementById("transOctaveDownBtn"),
         octaveUpBtn: document.getElementById("transOctaveUpBtn"),
+        stepDownBtn: document.getElementById("transStepDownBtn"),
+        stepUpBtn: document.getElementById("transStepUpBtn"),
         button: document.getElementById("transcribeBtn"),
         status: document.getElementById("transStatus"),
         summary: document.getElementById("transSummary"),
@@ -1178,6 +1182,108 @@
         );
       }
 
+      function shiftTranscriberStep(delta) {
+        if ((transEls.mode.value || "notes") !== "notes") {
+          setTransStatus("Step controls are available in Note Tokens mode only.", "warn");
+          return;
+        }
+
+        const raw = transEls.input.value || "";
+        const groups = tokenizeInputByLine(raw);
+        if (groups.length === 0) {
+          setTransStatus("Enter note tokens first.", "warn");
+          return;
+        }
+
+        const chromatic = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const aliases = {
+          "C": "C",
+          "B#": "C",
+          "C#": "C#",
+          "DB": "C#",
+          "D": "D",
+          "D#": "D#",
+          "EB": "D#",
+          "E": "E",
+          "FB": "E",
+          "F": "F",
+          "E#": "F",
+          "F#": "F#",
+          "GB": "F#",
+          "G": "G",
+          "G#": "G#",
+          "AB": "G#",
+          "A": "A",
+          "A#": "A#",
+          "BB": "A#",
+          "B": "B",
+          "CB": "B",
+        };
+
+        let shiftedCount = 0;
+        const shiftedGroups = groups.map((group) =>
+          group.map((token) => {
+            const match = token.match(/^([A-Ga-g])([#b]?)(\+*)(-?\d+)?$/);
+            if (!match) {
+              return token;
+            }
+
+            const rawNote = (match[1].toUpperCase() + (match[2] || "")).replace("b", "B");
+            const canonical = aliases[rawNote];
+            if (!canonical) {
+              return token;
+            }
+
+            const baseIndex = chromatic.indexOf(canonical);
+            if (baseIndex === -1) {
+              return token;
+            }
+
+            const plusMarks = match[3] || "";
+            const octaveRaw = match[4];
+
+            // If octave context exists, do semitone math with octave carry/borrow.
+            if (octaveRaw !== undefined || plusMarks.length > 0) {
+              const octave = octaveRaw !== undefined
+                ? Number.parseInt(octaveRaw, 10)
+                : (4 + plusMarks.length);
+              if (!Number.isFinite(octave)) {
+                return token;
+              }
+
+              const midi = ((octave + 1) * chromatic.length) + baseIndex;
+              const shiftedMidi = midi + delta;
+              if (shiftedMidi < 0) {
+                return token;
+              }
+
+              const shiftedIndex = shiftedMidi % chromatic.length;
+              const shiftedOctave = Math.floor(shiftedMidi / chromatic.length) - 1;
+              shiftedCount += 1;
+              return chromatic[shiftedIndex] + String(shiftedOctave);
+            }
+
+            // Pitch-class-only token, keep octave unspecified.
+            const shiftedIndex = (baseIndex + delta + chromatic.length) % chromatic.length;
+            shiftedCount += 1;
+            return chromatic[shiftedIndex];
+          })
+        );
+
+        if (shiftedCount === 0) {
+          setTransStatus("No shiftable note tokens found.", "warn");
+          return;
+        }
+
+        transEls.input.value = shiftedGroups.map((group) => group.join(" ")).join("\n");
+        persistTranscriberInputs();
+        setTransStatus(
+          "Shifted " + shiftedCount + " note" + (shiftedCount === 1 ? "" : "s") +
+          (delta > 0 ? " up" : " down") + " by one step.",
+          "ok"
+        );
+      }
+
       async function runTranscription() {
         const mode = transEls.mode.value || "notes";
         const raw = (transEls.input.value || "").trim();
@@ -1513,6 +1619,8 @@
         transEls.input.addEventListener("input", persistTranscriberInputs);
         transEls.octaveDownBtn.addEventListener("click", () => shiftTranscriberOctave(-1));
         transEls.octaveUpBtn.addEventListener("click", () => shiftTranscriberOctave(1));
+        transEls.stepDownBtn.addEventListener("click", () => shiftTranscriberStep(-1));
+        transEls.stepUpBtn.addEventListener("click", () => shiftTranscriberStep(1));
         transEls.button.addEventListener("click", () => {
           void runTranscription();
         });

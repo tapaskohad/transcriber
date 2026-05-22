@@ -180,6 +180,20 @@ class WebApiTests(unittest.TestCase):
         ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
         self.assertIn("2---------3", ascii_tab)
 
+    def test_transcribe_notes_mode_accepts_tab_tokens_as_input(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["2:5", "2:8", "1:5"]],
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["note_groups"], [["E4", "G4", "A4"]])
+        self.assertEqual(payload["tab_tokens"], ["2:5", "2:8", "1:5"])
+
     def test_transcribe_notes_mode_accepts_compact_notation_with_lyrics(self) -> None:
         status, payload = self._request_json(
             "/api/transcribe",
