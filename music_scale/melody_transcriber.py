@@ -12,7 +12,7 @@ import struct
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from .notes import CHROMATIC_NOTES, note_index, normalize_note
 
@@ -276,28 +276,51 @@ class MelodyTranscriber:
         *,
         frame_size_ms: float = 40.0,
         frame_hop_ms: float = 10.0,
+        progress_callback: Callable[[float, str], None] | None = None,
     ) -> MelodyTabResult:
         """Transcribe a mono/stereo PCM wav file to notes and tabs."""
+        def _notify(progress: float, stage: str) -> None:
+            if progress_callback is None:
+                return
+            clamped = max(0.0, min(100.0, float(progress)))
+            progress_callback(clamped, stage)
+
         if frame_size_ms <= 0 or frame_hop_ms <= 0:
             raise ValueError("frame_size_ms and frame_hop_ms must be positive.")
 
-        sample_rate, samples = _read_wav_mono(Path(wav_path))
+        _notify(1.0, "Reading WAV")
+        sample_rate, samples = _read_wav_mono(
+            Path(wav_path),
+            progress_callback=lambda ratio: _notify(1.0 + (ratio * 24.0), "Reading WAV"),
+        )
         if not samples:
+            _notify(100.0, "Completed")
             return MelodyTabResult(events=(), tabs=())
 
         frame_size = max(64, int(sample_rate * (frame_size_ms / 1000.0)))
         frame_hop = max(16, int(sample_rate * (frame_hop_ms / 1000.0)))
+        _notify(25.0, "Analyzing Pitch")
         pitch_track = self._extract_pitch_track(
             samples,
             sample_rate=sample_rate,
             frame_size=frame_size,
             frame_hop=frame_hop,
+            progress_callback=lambda ratio: _notify(
+                25.0 + (ratio * 55.0), "Analyzing Pitch"
+            ),
         )
+        _notify(80.0, "Smoothing")
         smoothed = self._median_smooth_pitch_track(pitch_track, window=5)
+        _notify(86.0, "Detecting Notes")
         events = self._events_from_pitch_track(
             smoothed, frame_step_s=(frame_hop / sample_rate)
         )
-        tabs = self.map_events_to_tabs(events)
+        _notify(92.0, "Mapping Tabs")
+        tabs = self.map_events_to_tabs(
+            events,
+            progress_callback=lambda ratio: _notify(92.0 + (ratio * 8.0), "Mapping Tabs"),
+        )
+        _notify(100.0, "Completed")
         return MelodyTabResult(events=tuple(events), tabs=tabs)
 
     def map_events_to_tabs(
@@ -307,9 +330,16 @@ class MelodyTranscriber:
         tab_strategy: str = "balanced",
         locked_string: int | None = None,
         preferred_tabs: Sequence[str | None] | None = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> tuple[TabPosition, ...]:
         """Find a smooth guitar fingering path for the melody events."""
+        def _notify(ratio: float) -> None:
+            if progress_callback is None:
+                return
+            progress_callback(max(0.0, min(1.0, ratio)))
+
         if not events:
+            _notify(1.0)
             return ()
 
         strategy = str(tab_strategy).strip().lower() if tab_strategy else "balanced"
@@ -336,6 +366,7 @@ class MelodyTranscriber:
             parsed_preferred = [None] * len(events)
 
         candidates_per_event: list[list[TabPosition]] = []
+        total_events = max(1, len(events))
         for index, event in enumerate(events):
             candidates = self._candidate_positions(event.midi)
             if locked_string is not None:
@@ -362,6 +393,7 @@ class MelodyTranscriber:
                     f"{self.min_fret}-{self.max_fret}."
                 )
             candidates_per_event.append(candidates)
+            _notify(0.2 * ((index + 1) / total_events))
 
         if strategy == "single_string":
             if any(item is not None for item in parsed_preferred):
@@ -414,6 +446,7 @@ class MelodyTranscriber:
                         best_parent = k
                 scores[i][j] = best_score
                 parents[i][j] = best_parent
+            _notify(0.2 + (0.7 * (i / max(1, len(candidates_per_event) - 1))))
 
         last_index = min(
             range(len(scores[-1])),
@@ -429,6 +462,7 @@ class MelodyTranscriber:
             current_idx = parents[event_idx][current_idx]
 
         chosen.reverse()
+        _notify(1.0)
         return tuple(chosen)
 
     @staticmethod
@@ -589,20 +623,41 @@ class MelodyTranscriber:
         sample_rate: int,
         frame_size: int,
         frame_hop: int,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> list[float | None]:
+        def _notify(step: int, total_steps: int) -> None:
+            if progress_callback is None or total_steps <= 0:
+                return
+            progress_callback(max(0.0, min(1.0, step / total_steps)))
+
         if len(samples) < frame_size:
+            if progress_callback is not None:
+                progress_callback(1.0)
             return []
 
         frame_starts = range(0, len(samples) - frame_size + 1, frame_hop)
         frames: list[Sequence[float]] = []
         rms_values: list[float] = []
+        frame_starts_list = list(frame_starts)
+        frame_count = len(frame_starts_list)
+        if frame_count <= 0:
+            if progress_callback is not None:
+                progress_callback(1.0)
+            return []
+        total_steps = frame_count * 2
+        step = 0
 
-        for start in frame_starts:
+        for start in frame_starts_list:
             frame = samples[start : start + frame_size]
             frames.append(frame)
             rms_values.append(_rms(frame))
+            step += 1
+            if step % max(1, frame_count // 120) == 0:
+                _notify(step, total_steps)
 
         if not rms_values:
+            if progress_callback is not None:
+                progress_callback(1.0)
             return []
 
         sorted_rms = sorted(rms_values)
@@ -613,6 +668,9 @@ class MelodyTranscriber:
         for frame, rms_value in zip(frames, rms_values):
             if rms_value < threshold:
                 pitch_track.append(None)
+                step += 1
+                if step % max(1, frame_count // 120) == 0:
+                    _notify(step, total_steps)
                 continue
 
             pitch = _autocorrelation_pitch(
@@ -622,6 +680,11 @@ class MelodyTranscriber:
                 max_freq_hz=self.max_freq_hz,
             )
             pitch_track.append(pitch)
+            step += 1
+            if step % max(1, frame_count // 120) == 0:
+                _notify(step, total_steps)
+        if progress_callback is not None:
+            progress_callback(1.0)
         return pitch_track
 
     @staticmethod
@@ -765,7 +828,16 @@ def _autocorrelation_pitch(
     return sample_rate / best_lag
 
 
-def _read_wav_mono(path: Path) -> tuple[int, list[float]]:
+def _read_wav_mono(
+    path: Path,
+    *,
+    progress_callback: Callable[[float], None] | None = None,
+) -> tuple[int, list[float]]:
+    def _notify(ratio: float) -> None:
+        if progress_callback is None:
+            return
+        progress_callback(max(0.0, min(1.0, ratio)))
+
     if not path.exists():
         raise FileNotFoundError(f"WAV file not found: {path}")
 
@@ -774,36 +846,92 @@ def _read_wav_mono(path: Path) -> tuple[int, list[float]]:
         sample_width = wav_file.getsampwidth()
         sample_rate = wav_file.getframerate()
         frame_count = wav_file.getnframes()
-        raw = wav_file.readframes(frame_count)
+        if frame_count <= 0:
+            _notify(1.0)
+            return sample_rate, []
+
+        frames_per_chunk = max(1, min(32768, frame_count // 120 if frame_count > 120 else frame_count))
+        raw_parts: list[bytes] = []
+        read_frames = 0
+        while read_frames < frame_count:
+            target_frames = min(frames_per_chunk, frame_count - read_frames)
+            chunk = wav_file.readframes(target_frames)
+            if not chunk:
+                break
+            raw_parts.append(chunk)
+            read_frames += target_frames
+            _notify((read_frames / frame_count) * 0.6)
+        raw = b"".join(raw_parts)
 
     if channels < 1:
         raise ValueError("WAV has invalid channel count.")
     if sample_width not in {1, 2, 3, 4}:
         raise ValueError(f"Unsupported sample width: {sample_width} bytes.")
 
-    samples = _decode_pcm(raw, sample_width=sample_width)
+    samples = _decode_pcm(
+        raw,
+        sample_width=sample_width,
+        progress_callback=lambda ratio: _notify(0.6 + (ratio * 0.35)),
+    )
     if channels == 1:
+        _notify(1.0)
         return sample_rate, samples
 
     mono: list[float] = []
+    chunk_size = max(channels, min(len(samples), 65536))
+    processed = 0
     for i in range(0, len(samples), channels):
         frame = samples[i : i + channels]
         if not frame:
             continue
         mono.append(sum(frame) / len(frame))
+        processed += channels
+        if processed % chunk_size == 0:
+            _notify(0.95 + (0.05 * min(1.0, processed / max(1, len(samples)))))
+    _notify(1.0)
     return sample_rate, mono
 
 
-def _decode_pcm(raw: bytes, *, sample_width: int) -> list[float]:
+def _decode_pcm(
+    raw: bytes,
+    *,
+    sample_width: int,
+    progress_callback: Callable[[float], None] | None = None,
+) -> list[float]:
+    def _notify(ratio: float) -> None:
+        if progress_callback is None:
+            return
+        progress_callback(max(0.0, min(1.0, ratio)))
+
+    if not raw:
+        _notify(1.0)
+        return []
+
     if sample_width == 1:
-        return [((sample - 128) / 128.0) for sample in raw]
+        float_samples: list[float] = []
+        total = len(raw)
+        chunk_size = max(1, min(total, 131072))
+        for start in range(0, total, chunk_size):
+            chunk = raw[start : start + chunk_size]
+            float_samples.extend(((sample - 128) / 128.0) for sample in chunk)
+            _notify(min(1.0, (start + len(chunk)) / total))
+        return float_samples
 
     if sample_width == 2:
         int_samples = struct.unpack(f"<{len(raw) // 2}h", raw)
-        return [sample / 32768.0 for sample in int_samples]
+        total = len(int_samples)
+        float_samples: list[float] = []
+        chunk_size = max(1, min(total, 65536))
+        for start in range(0, total, chunk_size):
+            chunk = int_samples[start : start + chunk_size]
+            float_samples.extend(sample / 32768.0 for sample in chunk)
+            _notify(min(1.0, (start + len(chunk)) / total))
+        return float_samples
 
     if sample_width == 3:
         float_samples: list[float] = []
+        total = len(raw)
+        update_stride = max(3, total // 120)
         for i in range(0, len(raw), 3):
             chunk = raw[i : i + 3]
             if len(chunk) < 3:
@@ -813,10 +941,20 @@ def _decode_pcm(raw: bytes, *, sample_width: int) -> list[float]:
                 chunk + sign_extension, byteorder="little", signed=True
             )
             float_samples.append(as_int / 8388608.0)
+            if i % update_stride == 0:
+                _notify(min(1.0, (i + 3) / total))
+        _notify(1.0)
         return float_samples
 
     int_samples = struct.unpack(f"<{len(raw) // 4}i", raw)
-    return [sample / 2147483648.0 for sample in int_samples]
+    total = len(int_samples)
+    float_samples = []
+    chunk_size = max(1, min(total, 65536))
+    for start in range(0, total, chunk_size):
+        chunk = int_samples[start : start + chunk_size]
+        float_samples.extend(sample / 2147483648.0 for sample in chunk)
+        _notify(min(1.0, (start + len(chunk)) / total))
+    return float_samples
 
 
 def format_ascii_tab(

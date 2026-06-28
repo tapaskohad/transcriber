@@ -22,73 +22,115 @@
     })();
   </script>
   <style>
-    @import url("https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Bitter:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap");
+    @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap");
 
     :root {
-      --ink: #1c2a35;
-      --ink-soft: #526577;
-      --ink-muted: #64798f;
-      --line: rgba(37, 66, 87, 0.2);
-      --line-strong: rgba(27, 50, 67, 0.32);
-      --panel: rgba(255, 255, 255, 0.78);
-      --panel-strong: rgba(255, 255, 255, 0.9);
-      --panel-edge: rgba(255, 255, 255, 0.72);
-      --field-bg: rgba(255, 255, 255, 0.78);
-      --surface-a: #f7efe2;
-      --surface-b: #dff0f3;
-      --surface-c: #f9dfc8;
-      --btn-top: #ffffff;
-      --btn: #ecf4f6;
-      --btn-border: rgba(35, 65, 84, 0.24);
-      --accent: #0d8f86;
-      --accent-strong: #0c726a;
-      --accent-warm: #d98442;
-      --accent-warm-strong: #bf6e32;
-      --focus-ring: rgba(13, 143, 134, 0.42);
-      --silicon-plate: rgba(249, 253, 255, 0.72);
-      --silicon-cell-top: #f8fcff;
-      --silicon-cell-bottom: #e4eef3;
-      --silicon-grid-line: rgba(55, 83, 106, 0.3);
-      --silicon-label: #2f4457;
-      --silicon-led-glow: rgba(20, 146, 132, 0.34);
-      --ok: #10784c;
-      --warn: #b35f26;
-      --shadow: 0 22px 42px rgba(31, 48, 61, 0.13);
+      --ink: #2e261d;
+      --ink-soft: #5f4f3a;
+      --ink-muted: #7d6a51;
+      --line: rgba(161, 129, 83, 0.44);
+      --line-strong: rgba(143, 109, 67, 0.56);
+      --panel: rgba(241, 232, 214, 0.86);
+      --panel-strong: rgba(252, 247, 237, 0.94);
+      --panel-edge: rgba(186, 151, 103, 0.46);
+      --field-bg: rgba(247, 239, 224, 0.92);
+      --surface-a: #f3ebdc;
+      --surface-b: #e8ddc9;
+      --surface-c: #d8c5a4;
+      --btn-top: #f7ebcf;
+      --btn: #d4b687;
+      --btn-border: rgba(146, 110, 61, 0.5);
+      --accent: #d2b378;
+      --accent-strong: #9d753f;
+      --accent-warm: #f1efe9;
+      --accent-warm-strong: #b7b2aa;
+      --focus-ring: rgba(184, 143, 86, 0.42);
+      --silicon-plate: rgba(236, 222, 199, 0.92);
+      --silicon-cell-top: #f1e7d6;
+      --silicon-cell-bottom: #dfccac;
+      --silicon-grid-line: rgba(156, 123, 80, 0.42);
+      --silicon-label: #3f3121;
+      --silicon-led-glow: rgba(198, 160, 94, 0.34);
+      --ok: #4f7e62;
+      --warn: #9a6732;
+      --shadow: 0 18px 34px rgba(93, 71, 41, 0.28);
+      --title-ink: #937141;
+      --title-shadow-bright: rgba(255, 247, 229, 0.9);
+      --title-shadow-dark: rgba(124, 90, 44, 0.34);
+      --pill-bg-top: #e9d5b0;
+      --pill-bg-bottom: #d0af79;
+      --switch-bg-top: #eddcba;
+      --switch-bg-bottom: #c9aa73;
+      --note-chip-top: #a9d8f3;
+      --note-chip-bottom: #82c3e7;
+      --note-chip-border: rgba(88, 136, 169, 0.56);
+      --note-chip-ink: #244962;
+      --info-strip-top: rgba(246, 238, 223, 0.96);
+      --info-strip-bottom: rgba(229, 214, 188, 0.96);
+      --info-strip-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 0 0 1px rgba(138, 111, 76, 0.22);
+      --fret-head-top: rgba(210, 175, 113, 0.86);
+      --fret-head-bottom: rgba(180, 140, 86, 0.92);
+      --fret-firstcol-top: rgba(130, 102, 65, 0.94);
+      --fret-firstcol-bottom: rgba(101, 76, 49, 0.97);
+      --list-bg-top: rgba(236, 221, 198, 0.86);
+      --list-bg-bottom: rgba(214, 190, 152, 0.82);
+      --active-ink: #2a1d11;
       --mono: "IBM Plex Mono", "Consolas", "Courier New", monospace;
-      --sans: "Sora", "Segoe UI Variable Text", "Segoe UI", sans-serif;
-      --serif: "Bitter", "Georgia", serif;
+      --sans: "Source Sans 3", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+      --serif: "Cinzel", "Georgia", serif;
     }
 
     html[data-theme="dark"] {
-      --ink: #ecf3f7;
-      --ink-soft: #b7c8d6;
-      --ink-muted: #95abc0;
-      --line: rgba(137, 166, 194, 0.3);
-      --line-strong: rgba(170, 198, 224, 0.42);
-      --panel: rgba(10, 28, 40, 0.72);
-      --panel-strong: rgba(15, 36, 49, 0.84);
-      --panel-edge: rgba(171, 216, 223, 0.2);
-      --field-bg: rgba(14, 34, 48, 0.82);
-      --surface-a: #06161f;
-      --surface-b: #0a2434;
-      --surface-c: #30231a;
-      --btn-top: #193241;
-      --btn: #112735;
-      --btn-border: rgba(141, 184, 199, 0.42);
-      --accent: #49d8cb;
-      --accent-strong: #1fb5a8;
-      --accent-warm: #ffb272;
-      --accent-warm-strong: #e28f4c;
-      --focus-ring: rgba(73, 216, 203, 0.56);
-      --silicon-plate: rgba(9, 24, 34, 0.78);
-      --silicon-cell-top: #142b3b;
-      --silicon-cell-bottom: #102232;
-      --silicon-grid-line: rgba(111, 153, 183, 0.3);
-      --silicon-label: #d6e5f2;
-      --silicon-led-glow: rgba(75, 217, 202, 0.45);
-      --ok: #59d194;
-      --warn: #f8aa69;
-      --shadow: 0 22px 42px rgba(3, 10, 15, 0.5);
+      --ink: #f1e2c4;
+      --ink-soft: #d3bb8f;
+      --ink-muted: #bca073;
+      --line: rgba(190, 151, 83, 0.44);
+      --line-strong: rgba(217, 176, 106, 0.62);
+      --panel: rgba(22, 24, 30, 0.82);
+      --panel-strong: rgba(30, 32, 39, 0.92);
+      --panel-edge: rgba(234, 197, 124, 0.28);
+      --field-bg: rgba(34, 30, 27, 0.84);
+      --surface-a: #121418;
+      --surface-b: #1a1e24;
+      --surface-c: #2a221d;
+      --btn-top: #5c4430;
+      --btn: #33271f;
+      --btn-border: rgba(201, 162, 93, 0.6);
+      --accent: #ddbf80;
+      --accent-strong: #ab7e41;
+      --accent-warm: #ccd4df;
+      --accent-warm-strong: #9eabb9;
+      --focus-ring: rgba(221, 191, 128, 0.48);
+      --silicon-plate: rgba(31, 27, 23, 0.86);
+      --silicon-cell-top: #4e3a2a;
+      --silicon-cell-bottom: #302318;
+      --silicon-grid-line: rgba(139, 104, 66, 0.55);
+      --silicon-label: #f1dfba;
+      --silicon-led-glow: rgba(218, 185, 120, 0.46);
+      --ok: #95d1af;
+      --warn: #f2b56a;
+      --shadow: 0 26px 44px rgba(0, 0, 0, 0.52);
+      --title-ink: #f0dab0;
+      --title-shadow-bright: rgba(255, 255, 255, 0.25);
+      --title-shadow-dark: rgba(0, 0, 0, 0.46);
+      --pill-bg-top: rgba(63, 52, 42, 0.9);
+      --pill-bg-bottom: rgba(36, 30, 26, 0.94);
+      --switch-bg-top: rgba(34, 32, 34, 0.92);
+      --switch-bg-bottom: rgba(20, 20, 24, 0.95);
+      --note-chip-top: rgba(56, 72, 86, 0.92);
+      --note-chip-bottom: rgba(28, 46, 62, 0.95);
+      --note-chip-border: rgba(109, 156, 189, 0.5);
+      --note-chip-ink: #d9e8f6;
+      --info-strip-top: rgba(48, 40, 31, 0.86);
+      --info-strip-bottom: rgba(31, 29, 29, 0.92);
+      --info-strip-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+      --fret-head-top: rgba(206, 169, 101, 0.82);
+      --fret-head-bottom: rgba(152, 115, 66, 0.86);
+      --fret-firstcol-top: rgba(38, 28, 22, 0.96);
+      --fret-firstcol-bottom: rgba(22, 17, 14, 0.98);
+      --list-bg-top: rgba(58, 45, 34, 0.5);
+      --list-bg-bottom: rgba(28, 25, 25, 0.72);
+      --active-ink: #1d140f;
     }
 
     * {
@@ -101,9 +143,9 @@
       color: var(--ink);
       font-family: var(--sans);
       background:
-        radial-gradient(1200px 780px at -4% -8%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%),
-        radial-gradient(940px 700px at 108% -10%, color-mix(in srgb, var(--accent-warm) 26%, transparent), transparent 74%),
-        linear-gradient(168deg, var(--surface-a) 0%, var(--surface-b) 56%, var(--surface-c) 100%);
+        radial-gradient(900px 580px at 8% 90%, rgba(172, 123, 58, 0.18), transparent 76%),
+        radial-gradient(900px 560px at 90% 10%, rgba(160, 174, 196, 0.14), transparent 76%),
+        linear-gradient(162deg, var(--surface-a) 0%, var(--surface-b) 56%, var(--surface-c) 100%);
       transition: background 0.4s ease, color 0.35s ease;
       overflow: hidden;
     }
@@ -118,20 +160,28 @@
     }
 
     body::before {
-      opacity: 0.22;
+      opacity: 0.16;
       background:
-        radial-gradient(530px 530px at 18% 16%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
-        radial-gradient(660px 660px at 86% 80%, color-mix(in srgb, var(--accent-warm) 24%, transparent), transparent 76%);
+        repeating-radial-gradient(
+          circle at 24% 18%,
+          rgba(255, 255, 255, 0.03) 0 2px,
+          transparent 2px 6px
+        ),
+        repeating-radial-gradient(
+          circle at 82% 78%,
+          rgba(255, 255, 255, 0.025) 0 2px,
+          transparent 2px 7px
+        );
       animation: ambientDrift 16s ease-in-out infinite alternate;
     }
 
     body::after {
-      opacity: 0.09;
+      opacity: 0.18;
       background:
         repeating-linear-gradient(
-          130deg,
-          rgba(255, 255, 255, 0.34) 0 2px,
-          transparent 2px 17px
+          138deg,
+          rgba(201, 160, 95, 0.13) 0 1px,
+          transparent 1px 18px
         );
     }
 
@@ -151,14 +201,11 @@
       border: 1px solid var(--line);
       border-radius: 20px;
       background:
-        linear-gradient(
-          150deg,
-          color-mix(in srgb, var(--panel-strong) 88%, transparent 12%) 0%,
-          color-mix(in srgb, var(--panel) 88%, transparent 12%) 100%
-        );
+        linear-gradient(160deg, color-mix(in srgb, var(--panel-strong) 92%, transparent 8%), color-mix(in srgb, var(--panel) 92%, transparent 8%)),
+        linear-gradient(30deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.16));
       box-shadow: var(--shadow);
-      backdrop-filter: blur(12px) saturate(1.1);
-      -webkit-backdrop-filter: blur(12px) saturate(1.1);
+      backdrop-filter: blur(10px) saturate(1.04);
+      -webkit-backdrop-filter: blur(10px) saturate(1.04);
       position: relative;
       overflow: hidden;
     }
@@ -171,7 +218,18 @@
       right: 0;
       top: 0;
       height: 1px;
-      background: var(--panel-edge);
+      background: color-mix(in srgb, var(--panel-edge) 74%, transparent 26%);
+      pointer-events: none;
+    }
+
+    .topbar::after,
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border: 1px dashed color-mix(in srgb, var(--line-strong) 62%, transparent 38%);
+      border-radius: 14px;
+      opacity: 0.5;
       pointer-events: none;
     }
 
@@ -194,6 +252,10 @@
       font-size: clamp(1.48rem, 2.1vw, 2.08rem);
       letter-spacing: 0.02em;
       line-height: 1.04;
+      color: var(--title-ink);
+      text-shadow:
+        0 1px 0 var(--title-shadow-bright),
+        0 10px 16px var(--title-shadow-dark);
     }
 
     .brand p {
@@ -212,13 +274,14 @@
     .mark-pill {
       padding: 3px 9px;
       border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--line) 65%, transparent 35%);
+      border: 1px solid color-mix(in srgb, var(--line-strong) 68%, transparent 32%);
       font-size: 0.67rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--ink-soft);
-      background: color-mix(in srgb, var(--panel) 85%, transparent 15%);
+      background: linear-gradient(180deg, var(--pill-bg-top), var(--pill-bg-bottom));
       font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
     .mode-switch,
@@ -234,9 +297,11 @@
       justify-content: center;
       padding: 4px;
       border-radius: 14px;
-      border: 1px solid color-mix(in srgb, var(--line) 72%, transparent 28%);
-      background: color-mix(in srgb, var(--panel) 92%, transparent 8%);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      border: 1px solid color-mix(in srgb, var(--line-strong) 65%, transparent 35%);
+      background: linear-gradient(180deg, var(--switch-bg-top), var(--switch-bg-bottom));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.32),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
     }
 
     .mode-btn,
@@ -248,7 +313,13 @@
     .text-area {
       border: 1px solid var(--btn-border);
       border-radius: 12px;
-      background: linear-gradient(165deg, var(--btn-top) 0%, var(--btn) 100%);
+      background:
+        linear-gradient(165deg, var(--btn-top) 0%, var(--btn) 100%),
+        repeating-linear-gradient(
+          10deg,
+          rgba(255, 255, 255, 0.04) 0 2px,
+          rgba(0, 0, 0, 0.06) 2px 6px
+        );
       color: var(--ink);
       font-family: var(--sans);
       transition: transform 0.14s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.2s ease;
@@ -282,26 +353,69 @@
     .btn:hover,
     .theme-btn:hover,
     .cell-btn:hover {
-      border-color: color-mix(in srgb, var(--accent) 42%, var(--btn-border) 58%);
-      box-shadow: 0 8px 16px rgba(23, 53, 73, 0.14);
+      border-color: color-mix(in srgb, var(--accent) 54%, var(--btn-border) 46%);
+      box-shadow:
+        0 8px 16px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
       transform: translateY(-1px);
+    }
+
+    .btn.active,
+    .btn[aria-pressed="true"] {
+      color: var(--active-ink);
+      border-color: transparent;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--accent) 86%, #fff5dc 14%), color-mix(in srgb, var(--accent-strong) 82%, #7f5f32 18%));
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--focus-ring) 68%, transparent 32%),
+        0 0 22px color-mix(in srgb, var(--accent) 62%, transparent 38%),
+        inset 0 1px 0 rgba(255, 255, 255, 0.46),
+        inset 0 0 0 1px rgba(99, 72, 34, 0.24);
+    }
+
+    .next-line-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .next-line-btn::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink-muted) 54%, transparent 46%);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--ink-muted) 36%, transparent 64%),
+        0 0 8px color-mix(in srgb, var(--ink-muted) 26%, transparent 74%);
+    }
+
+    .next-line-btn[aria-pressed="true"]::before {
+      background: color-mix(in srgb, var(--accent) 82%, #fff7dd 18%);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent-strong) 58%, transparent 42%),
+        0 0 14px color-mix(in srgb, var(--accent) 74%, transparent 26%);
     }
 
     .mode-btn.active,
     .cell-btn.active,
     .note-chip.active {
-      color: #ffffff;
+      color: var(--active-ink);
       border-color: transparent;
-      background: linear-gradient(140deg, var(--accent) 0%, var(--accent-warm-strong) 100%);
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--accent) 84%, #fff5dc 16%), color-mix(in srgb, var(--accent-strong) 86%, #7f5f32 14%));
       box-shadow:
-        0 12px 20px color-mix(in srgb, var(--accent) 38%, transparent 62%),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+        0 10px 18px rgba(0, 0, 0, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 0 0 1px rgba(99, 72, 34, 0.25);
     }
 
     .theme-btn {
       min-width: 84px;
       justify-content: center;
-      background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 12%, var(--btn-top) 88%), var(--btn));
+      background:
+        linear-gradient(150deg, color-mix(in srgb, var(--accent-warm) 44%, var(--btn-top) 56%), color-mix(in srgb, var(--accent-warm-strong) 28%, var(--btn) 72%));
+      color: var(--active-ink);
     }
 
     .panel {
@@ -314,6 +428,12 @@
     .panel-head {
       display: grid;
       gap: 4px;
+    }
+
+    .generated-tabs-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      column-gap: 10px;
     }
 
     .mode-panel {
@@ -429,14 +549,24 @@
       font-size: 0.87rem;
       font-weight: 700;
       letter-spacing: 0.01em;
+      background:
+        linear-gradient(160deg, var(--note-chip-top), var(--note-chip-bottom)),
+        repeating-linear-gradient(
+          20deg,
+          rgba(255, 255, 255, 0.06) 0 2px,
+          rgba(0, 0, 0, 0.08) 2px 7px
+        );
+      border-color: var(--note-chip-border);
+      color: var(--note-chip-ink);
     }
 
     .selected-line {
       margin: 0;
       padding: 9px 11px;
-      border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line) 66%);
+      border: 1px solid color-mix(in srgb, var(--line-strong) 74%, var(--line) 26%);
       border-radius: 11px;
-      background: color-mix(in srgb, var(--accent) 11%, var(--panel) 89%);
+      background:
+        linear-gradient(168deg, var(--info-strip-top), var(--info-strip-bottom));
       font-family: var(--mono);
       font-size: 0.81rem;
       font-weight: 600;
@@ -444,6 +574,8 @@
       white-space: nowrap;
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
+      color: var(--ink);
+      box-shadow: var(--info-strip-shadow);
     }
 
     .fretboard-scroll,
@@ -452,20 +584,19 @@
       overflow: auto;
       border: 1px solid var(--line);
       border-radius: 14px;
-      background: color-mix(in srgb, var(--panel) 90%, transparent 10%);
+      background: color-mix(in srgb, var(--panel) 94%, transparent 6%);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
     }
 
     .fretboard-scroll {
-      border-color: color-mix(in srgb, var(--silicon-grid-line) 54%, var(--line) 46%);
+      border-color: color-mix(in srgb, var(--line-strong) 62%, var(--line) 38%);
       background:
-        radial-gradient(500px 260px at 10% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 72%),
-        radial-gradient(520px 260px at 94% 100%, color-mix(in srgb, var(--accent-warm) 12%, transparent), transparent 74%),
-        linear-gradient(180deg, color-mix(in srgb, var(--silicon-plate) 86%, transparent 14%), color-mix(in srgb, var(--silicon-plate) 96%, transparent 4%));
+        radial-gradient(520px 280px at 12% -8%, rgba(201, 168, 107, 0.18), transparent 72%),
+        linear-gradient(180deg, color-mix(in srgb, var(--silicon-plate) 90%, transparent 10%), color-mix(in srgb, var(--silicon-plate) 98%, transparent 2%));
       box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.28),
-        inset 0 -16px 24px rgba(3, 15, 24, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -16px 24px rgba(0, 0, 0, 0.22);
     }
 
     #mode-scale .panel-fret .fretboard-scroll {
@@ -510,7 +641,9 @@
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--silicon-label);
-      background: color-mix(in srgb, var(--silicon-plate) 94%, transparent 6%);
+      background:
+        linear-gradient(180deg, var(--fret-head-top), var(--fret-head-bottom));
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.38);
       font-weight: 700;
     }
 
@@ -529,8 +662,8 @@
       background:
         linear-gradient(
           180deg,
-          color-mix(in srgb, var(--silicon-plate) 82%, rgba(255, 255, 255, 0.14) 18%),
-          color-mix(in srgb, var(--silicon-plate) 94%, transparent 6%)
+          var(--fret-firstcol-top),
+          var(--fret-firstcol-bottom)
         );
     }
 
@@ -543,14 +676,20 @@
       cursor: pointer;
       position: relative;
       overflow: hidden;
-      background: linear-gradient(180deg, var(--silicon-cell-top), var(--silicon-cell-bottom));
+      background:
+        linear-gradient(180deg, var(--silicon-cell-top), var(--silicon-cell-bottom)),
+        repeating-linear-gradient(
+          18deg,
+          rgba(255, 255, 255, 0.05) 0 2px,
+          rgba(0, 0, 0, 0.1) 2px 8px
+        );
       color: var(--silicon-label);
       font-family: var(--mono);
       font-size: 0.74rem;
       font-weight: 600;
       box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
       transition: box-shadow 0.16s ease, color 0.16s ease, background 0.16s ease;
     }
 
@@ -559,32 +698,32 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
-      opacity: 0.18;
+      opacity: 0.24;
       background:
         repeating-linear-gradient(
-          50deg,
-          rgba(255, 255, 255, 0.09) 0 2px,
-          transparent 2px 9px
+          36deg,
+          rgba(255, 255, 255, 0.05) 0 2px,
+          transparent 2px 7px
         );
     }
 
     .fret-cell-btn:hover {
       box-shadow:
-        inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
     }
 
     .fret-cell-btn.active {
-      color: #ffffff;
+      color: var(--active-ink);
       background:
         linear-gradient(
           180deg,
-          color-mix(in srgb, var(--accent) 66%, var(--silicon-cell-top) 34%),
-          color-mix(in srgb, var(--accent-warm-strong) 62%, var(--silicon-cell-bottom) 38%)
+          color-mix(in srgb, var(--accent) 78%, #fff3d6 22%),
+          color-mix(in srgb, var(--accent-strong) 74%, #7e5b2f 26%)
         );
       box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.24),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 0 0 0 1px rgba(117, 84, 40, 0.4);
     }
 
     .fret-cell-btn.active::after {
@@ -597,7 +736,7 @@
       border-radius: 999px;
       background: var(--silicon-led-glow);
       filter: blur(8px);
-      opacity: 0.9;
+      opacity: 0.72;
       pointer-events: none;
     }
 
@@ -606,6 +745,8 @@
       padding: 0;
       list-style: none;
       max-height: 310px;
+      background:
+        linear-gradient(180deg, var(--list-bg-top), var(--list-bg-bottom));
     }
 
     .list-box li {
@@ -614,6 +755,7 @@
       font-family: var(--mono);
       font-size: 0.79rem;
       line-height: 1.4;
+      color: color-mix(in srgb, var(--ink) 88%, #fff8ea 12%);
     }
 
     .list-box li:last-child {
@@ -651,6 +793,57 @@
       line-height: 1.45;
     }
 
+    .wav-input-tools {
+      display: none;
+      gap: 8px;
+    }
+
+    .wav-input-tools.active {
+      display: grid;
+    }
+
+    .wav-upload-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .wav-file-line {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .wav-drop-zone {
+      border: 1px dashed color-mix(in srgb, var(--line-strong) 74%, var(--line) 26%);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.79rem;
+      color: var(--ink-soft);
+      cursor: pointer;
+      background: color-mix(in srgb, var(--field-bg) 72%, transparent 28%);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+    }
+
+    .wav-drop-zone:hover {
+      border-color: color-mix(in srgb, var(--accent) 68%, var(--line-strong) 32%);
+      color: var(--ink);
+    }
+
+    .wav-drop-zone.drag-over {
+      border-color: color-mix(in srgb, var(--accent) 76%, var(--line-strong) 24%);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 82%, transparent 18%);
+      color: var(--ink);
+    }
+
     .output-tab {
       margin: 0;
       padding: 10px;
@@ -661,7 +854,27 @@
       font-size: 0.76rem;
       line-height: 1.45;
       white-space: pre;
-      overflow-x: auto;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--accent) 60%, transparent) transparent;
+    }
+
+    .output-tab::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .output-tab::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 58%, transparent);
+    }
+
+    .output-tab::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #seqAscii.output-tab {
+      max-height: min(34vh, 320px);
     }
 
     .events-box {
@@ -752,6 +965,10 @@
       #mode-scale .panel-results,
       #mode-sequencer .panel-grid {
         grid-template-rows: auto;
+      }
+
+      .generated-tabs-head {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -885,12 +1102,29 @@
           <select id="transMode" class="select">
             <option value="notes">Note Tokens (E4 F#4 G4)</option>
             <option value="frequencies">Frequencies (440 493.88 523.25)</option>
-            <option value="wav">WAV File Path</option>
+            <option value="wav">WAV File (Drop / Browse / Path)</option>
           </select>
         </div>
         <div class="field">
           <label for="transInput">Input</label>
-          <textarea id="transInput" class="text-area" placeholder="Notes: E4 F#4 G4&#10;Frequencies: 440 493.88 523.25&#10;WAV: C:\path\to\melody.wav"></textarea>
+          <textarea id="transInput" class="text-area" placeholder="Notes: E4 F#4 G4&#10;Frequencies: 440 493.88 523.25&#10;WAV path (optional): C:\path\to\melody.wav"></textarea>
+        </div>
+        <div id="transWavTools" class="wav-input-tools" hidden>
+          <input id="transWavFileInput" type="file" accept=".wav,audio/wav,audio/x-wav,audio/wave,audio/vnd.wave" hidden />
+          <div class="wav-upload-row">
+            <button id="transWavBrowseBtn" class="btn" type="button">Choose WAV File</button>
+            <button id="transWavClearBtn" class="btn" type="button">Clear WAV</button>
+            <p id="transWavFileLine" class="wav-file-line">No WAV selected. Choose a WAV up to 200 MB, or paste a WAV path in the input box.</p>
+          </div>
+          <div
+            id="transWavDropZone"
+            class="wav-drop-zone"
+            role="button"
+            tabindex="0"
+            aria-label="Drop a WAV file here or press Enter to browse files"
+          >
+            Drag and drop a WAV file here
+          </div>
         </div>
         <div class="row">
           <button id="transOctaveDownBtn" class="btn" type="button" aria-label="Shift notes down one octave">Octave -</button>
@@ -928,7 +1162,7 @@
           <button id="seqUndoBtn" class="btn" type="button">Undo</button>
           <button id="seqClearBtn" class="btn" type="button">Clear</button>
           <button id="seqSpaceBtn" class="btn" type="button">Space (-----)</button>
-          <button id="seqNextLineBtn" class="btn" type="button">Next Line</button>
+          <button id="seqNextLineBtn" class="btn next-line-btn" type="button" aria-pressed="false" data-state="off">Next Line: Off</button>
         </div>
         <div class="split-2">
           <div class="field">
@@ -970,9 +1204,12 @@
       </section>
 
       <section class="panel panel-output">
-        <div class="panel-head">
-          <h2 class="block-title">Generated Tabs</h2>
-          <p class="block-subtitle">Rendered output follows your strategy and optional string lock settings.</p>
+        <div class="panel-head generated-tabs-head">
+          <div>
+            <h2 class="block-title">Generated Tabs</h2>
+            <p class="block-subtitle">Rendered output follows your strategy and optional string lock settings.</p>
+          </div>
+          <button id="seqSaveTxtBtn" class="btn" type="button" disabled>Save TXT</button>
         </div>
         <p id="seqTabTokens" class="selected-line">Tabs: -</p>
         <pre id="seqAscii" class="output-tab">-</pre>
@@ -1008,6 +1245,11 @@
       };
 
       const NOTE_WITH_OPTIONAL_TAB_RE = /^([A-Ga-g])([#b]?)(-?\d+)(?:@([1-6]:\d+))?$/;
+      const MAX_BROWSER_WAV_MB = 200;
+      const MAX_BROWSER_WAV_BYTES = MAX_BROWSER_WAV_MB * 1024 * 1024;
+      const TRANSCRIBE_PROGRESS_SCHEDULE = [
+        1, 4, 11, 21, 30, 38, 45, 52, 58, 63, 68, 72, 76, 80, 83, 86, 89, 91, 93, 94, 95
+      ];
 
       let config = null;
       let activeMode = "scale";
@@ -1040,6 +1282,12 @@
       const transEls = {
         mode: document.getElementById("transMode"),
         input: document.getElementById("transInput"),
+        wavTools: document.getElementById("transWavTools"),
+        wavFileInput: document.getElementById("transWavFileInput"),
+        wavBrowseBtn: document.getElementById("transWavBrowseBtn"),
+        wavClearBtn: document.getElementById("transWavClearBtn"),
+        wavFileLine: document.getElementById("transWavFileLine"),
+        wavDropZone: document.getElementById("transWavDropZone"),
         octaveDownBtn: document.getElementById("transOctaveDownBtn"),
         octaveUpBtn: document.getElementById("transOctaveUpBtn"),
         stepDownBtn: document.getElementById("transStepDownBtn"),
@@ -1061,6 +1309,7 @@
         clearBtn: document.getElementById("seqClearBtn"),
         spaceBtn: document.getElementById("seqSpaceBtn"),
         nextLineBtn: document.getElementById("seqNextLineBtn"),
+        saveTxtBtn: document.getElementById("seqSaveTxtBtn"),
         strategy: document.getElementById("seqStrategy"),
         string: document.getElementById("seqString"),
         fretHead: document.getElementById("seqFretHead"),
@@ -1069,6 +1318,9 @@
         ascii: document.getElementById("seqAscii"),
         requestToken: 0,
       };
+
+      let selectedWavFile = null;
+      let lastSequencerExportText = "";
 
       function readText(key, fallback = "") {
         try {
@@ -1371,6 +1623,247 @@
         writeText(KEYS.transInput, transEls.input.value || "");
       }
 
+      function syncTranscriberWavTools() {
+        const wavMode = (transEls.mode.value || "notes") === "wav";
+        transEls.wavTools.hidden = !wavMode;
+        transEls.wavTools.classList.toggle("active", wavMode);
+      }
+
+      function isWavFile(file) {
+        if (!file) {
+          return false;
+        }
+        const name = String(file.name || "").toLowerCase();
+        const type = String(file.type || "").toLowerCase();
+        if (name.endsWith(".wav")) {
+          return true;
+        }
+        return type === "audio/wav" || type === "audio/x-wav" || type === "audio/wave" || type === "audio/vnd.wave";
+      }
+
+      function setSelectedWavFile(file) {
+        if (!file) {
+          return;
+        }
+        if (!isWavFile(file)) {
+          setTransStatus("Please choose a .wav file.", "warn");
+          return;
+        }
+        if (file.size > MAX_BROWSER_WAV_BYTES) {
+          clearSelectedWavFile();
+          setTransStatus(
+            "WAV file is too large for browser upload. Use a file up to " + MAX_BROWSER_WAV_MB + " MB, or paste a WAV path.",
+            "warn"
+          );
+          return;
+        }
+        selectedWavFile = file;
+        transEls.wavClearBtn.disabled = false;
+        transEls.wavFileLine.textContent = "Selected WAV: " + file.name;
+        setTransStatus("WAV file ready: " + file.name, "ok");
+      }
+
+      function clearSelectedWavFile() {
+        selectedWavFile = null;
+        transEls.wavFileInput.value = "";
+        transEls.wavClearBtn.disabled = true;
+        transEls.wavFileLine.textContent = "No WAV selected. Choose a WAV up to " + MAX_BROWSER_WAV_MB + " MB, or paste a WAV path in the input box.";
+      }
+
+      function formatProgressText(prefix, percent) {
+        const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+        const width = 42;
+        const filled = Math.max(1, Math.min(width, Math.round((safePercent / 100) * width)));
+        const bar = "-".repeat(filled).padEnd(width, " ");
+        return prefix + " " + bar + " " + safePercent + "%";
+      }
+
+      function startProgressRamp(
+        onUpdate,
+        {
+          prefix = "Transcribing",
+          start = 8,
+          end = 98,
+          step = 1,
+          intervalMs = 320,
+          sustainAtEnd = false,
+          sustainMin = 95,
+          sustainMax = 98,
+          schedule = null,
+        } = {}
+      ) {
+        let current = Math.max(0, Math.min(100, Math.round(start)));
+        const scheduleValues = Array.isArray(schedule) ? schedule
+          .map((value) => Math.max(0, Math.min(100, Math.round(value))))
+          .filter((value) => Number.isFinite(value))
+          : [];
+        let scheduleIndex = 0;
+        if (scheduleValues.length > 0) {
+          current = scheduleValues[0];
+        }
+        let tick = 0;
+        onUpdate(formatProgressText(prefix, current));
+        const timerId = window.setInterval(() => {
+          tick += 1;
+          if (scheduleValues.length > 0 && scheduleIndex < scheduleValues.length - 1) {
+            scheduleIndex += 1;
+            current = scheduleValues[scheduleIndex];
+          } else if (current < end) {
+            current = Math.min(end, current + step);
+          } else if (sustainAtEnd) {
+            const lower = Math.max(0, Math.min(100, Math.round(sustainMin)));
+            const upper = Math.max(lower, Math.min(100, Math.round(sustainMax)));
+            const span = Math.max(1, upper - lower + 1);
+            current = lower + (tick % span);
+          }
+          onUpdate(formatProgressText(prefix, current));
+        }, intervalMs);
+        return {
+          stop(finalPercent = null) {
+            window.clearInterval(timerId);
+            if (finalPercent !== null && finalPercent !== undefined) {
+              onUpdate(formatProgressText(prefix, finalPercent));
+            }
+          },
+        };
+      }
+
+      function parseJsonPayload(rawText) {
+        const source = typeof rawText === "string" ? rawText.trim() : "";
+        if (!source) {
+          return null;
+        }
+        try {
+          return JSON.parse(source);
+        } catch (_error) {
+          return null;
+        }
+      }
+
+      function postJsonWithXhr(url, payload) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", url);
+          xhr.responseType = "text";
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.onload = () => {
+            const parsed = parseJsonPayload(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (!parsed || typeof parsed !== "object") {
+                reject(new Error("Invalid server response."));
+                return;
+              }
+              resolve(parsed);
+              return;
+            }
+            const message = parsed && typeof parsed.error === "string"
+              ? parsed.error
+              : ("Request failed (" + xhr.status + ").");
+            reject(new Error(message));
+          };
+          xhr.onerror = () => reject(new Error("Failed to reach server."));
+          xhr.onabort = () => reject(new Error("Request cancelled."));
+          xhr.ontimeout = () => reject(new Error("Request timed out."));
+          xhr.send(JSON.stringify(payload));
+        });
+      }
+
+      function postWavUploadWithXhr(file, { onUploadProgress, onUploadComplete } = {}) {
+        return new Promise((resolve, reject) => {
+          const formData = new FormData();
+          formData.append("wav_file", file, file.name || "melody.wav");
+
+          const xhr = new XMLHttpRequest();
+          if (typeof onUploadProgress === "function") {
+            xhr.upload.onprogress = (event) => {
+              if (!event.lengthComputable || event.total <= 0) {
+                return;
+              }
+              onUploadProgress(event.loaded / event.total);
+            };
+          }
+          if (typeof onUploadComplete === "function") {
+            xhr.upload.onload = () => {
+              onUploadComplete();
+            };
+          }
+          xhr.open("POST", "/api/transcribe-wav-upload");
+          xhr.responseType = "text";
+          xhr.onload = () => {
+            const parsed = parseJsonPayload(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (!parsed || typeof parsed !== "object") {
+                reject(new Error("Invalid server response."));
+                return;
+              }
+              resolve(parsed);
+              return;
+            }
+            const message = parsed && typeof parsed.error === "string"
+              ? parsed.error
+              : ("Request failed (" + xhr.status + ").");
+            reject(new Error(message));
+          };
+          xhr.onerror = () => reject(new Error("Failed to reach server."));
+          xhr.onabort = () => reject(new Error("Request cancelled."));
+          xhr.ontimeout = () => reject(new Error("Request timed out."));
+          xhr.send(formData);
+        });
+      }
+
+      async function waitForWavJobResult(jobId, { onProgress, pollMs = 320, timeoutMs = 30 * 60 * 1000 } = {}) {
+        const startedAt = Date.now();
+        const safeJobId = String(jobId || "").trim();
+        if (!safeJobId) {
+          throw new Error("Missing transcription job id.");
+        }
+
+        while (true) {
+          const response = await fetch(
+            "/api/transcribe-progress?job_id=" + encodeURIComponent(safeJobId),
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          );
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              payload && payload.error ? payload.error : "Failed to fetch transcription progress."
+            );
+          }
+
+          const progressRaw = Number(payload.progress_percent);
+          const progressPercent = Number.isFinite(progressRaw)
+            ? Math.max(0, Math.min(100, progressRaw))
+            : 0;
+          const stage = String(payload.message || "Transcribing").trim() || "Transcribing";
+          if (typeof onProgress === "function") {
+            onProgress({
+              progressPercent: progressPercent,
+              stage: stage,
+              done: Boolean(payload.done),
+              status: String(payload.status || ""),
+            });
+          }
+
+          if (payload.done) {
+            if (payload.error) {
+              throw new Error(String(payload.error));
+            }
+            if (!payload.result || typeof payload.result !== "object") {
+              throw new Error("Transcription completed without a result payload.");
+            }
+            return payload.result;
+          }
+
+          if (Date.now() - startedAt > timeoutMs) {
+            throw new Error("Transcription timed out.");
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, pollMs));
+        }
+      }
+
       function shiftTranscriberOctave(delta) {
         if ((transEls.mode.value || "notes") !== "notes") {
           setTransStatus("Octave controls are available in Note Tokens mode only.", "warn");
@@ -1533,13 +2026,13 @@
       async function runTranscription() {
         const mode = transEls.mode.value || "notes";
         const raw = (transEls.input.value || "").trim();
-        if (!raw) {
-          setTransStatus("Enter melody input first.", "warn");
-          return;
-        }
-
         const body = { mode: mode };
+        let uploadWavFile = null;
         if (mode === "notes") {
+          if (!raw) {
+            setTransStatus("Enter melody input first.", "warn");
+            return;
+          }
           const groups = tokenizeInputByLine(raw);
           if (groups.length === 0) {
             setTransStatus("Enter note tokens like E4 F#4 G4.", "warn");
@@ -1569,23 +2062,65 @@
           body.frequencies = frequencies;
           body.frame_step_s = 0.05;
         } else if (mode === "wav") {
-          body.wav_path = raw;
+          if (selectedWavFile) {
+            if (selectedWavFile.size > MAX_BROWSER_WAV_BYTES) {
+              setTransStatus(
+                "WAV file is too large for browser upload. Use a file up to " + MAX_BROWSER_WAV_MB + " MB, or paste a WAV path.",
+                "warn"
+              );
+              return;
+            }
+            uploadWavFile = selectedWavFile;
+          } else if (raw) {
+            body.wav_path = raw;
+          } else {
+            setTransStatus("Drop/select a WAV file or paste a WAV path.", "warn");
+            return;
+          }
         } else {
           setTransStatus("Unsupported mode.", "warn");
           return;
         }
 
-        setTransStatus("Transcribing...");
         persistTranscriberInputs();
         try {
-          const response = await fetch("/api/transcribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
-          const payload = await response.json();
-          if (!response.ok) {
-            throw new Error(payload && payload.error ? payload.error : "Transcription failed.");
+          let payload;
+          if (uploadWavFile) {
+            const startResponse = await postWavUploadWithXhr(uploadWavFile, {
+              onUploadProgress: (ratio) => {
+                const uploadPercent = Math.max(1, Math.min(99, ratio * 100));
+                setTransStatus(formatProgressText("Uploading WAV", uploadPercent));
+              },
+            });
+            const jobId = String(startResponse.job_id || "").trim();
+            if (!jobId) {
+              throw new Error("Server did not return a transcription job id.");
+            }
+            payload = await waitForWavJobResult(jobId, {
+              onProgress: ({ progressPercent, stage }) => {
+                setTransStatus(formatProgressText(stage || "Transcribing", progressPercent));
+              },
+            });
+          } else {
+            const progressRamp = startProgressRamp(
+              (text) => setTransStatus(text),
+              {
+                prefix: "Transcribing",
+                start: 1,
+                end: 98,
+                step: 1,
+                intervalMs: 420,
+                sustainAtEnd: true,
+                sustainMin: 95,
+                sustainMax: 98,
+                schedule: TRANSCRIBE_PROGRESS_SCHEDULE,
+              }
+            );
+            try {
+              payload = await postJsonWithXhr("/api/transcribe", body);
+            } finally {
+              progressRamp.stop(100);
+            }
           }
 
           const notes = Array.isArray(payload.notes) ? payload.notes : [];
@@ -1609,14 +2144,15 @@
         return letter.toUpperCase() + (accidental || "") + String(octave);
       }
 
-      function parseSequencerText(rawText) {
+      function parseSequencerLayout(rawText) {
         const trimmed = String(rawText || "").trim();
         if (!trimmed) {
-          return [];
+          return { groups: [], lineGroupLengths: [] };
         }
         const sanitized = trimmed.replace(/^\{/, "").replace(/\}$/, "");
         const lines = sanitized.split(/\r?\n/);
         const groups = [];
+        const lineGroupLengths = [];
 
         for (const lineRaw of lines) {
           const line = lineRaw.trim();
@@ -1624,6 +2160,7 @@
             continue;
           }
           const chunks = line.split("||").map((chunk) => chunk.trim()).filter(Boolean);
+          let groupsOnLine = 0;
           for (const chunk of chunks) {
             const tokens = chunk.split("->").map((item) => item.trim()).filter(Boolean);
             if (tokens.length === 0) {
@@ -1641,35 +2178,90 @@
               });
             }
             groups.push(group);
+            groupsOnLine += 1;
+          }
+          if (groupsOnLine > 0) {
+            lineGroupLengths.push(groupsOnLine);
           }
         }
-        return groups;
+        return { groups, lineGroupLengths };
       }
 
-      function serializeSequencerGroups(groups) {
+      function parseSequencerText(rawText) {
+        return parseSequencerLayout(rawText).groups;
+      }
+
+      function formatSequencerGroup(group) {
+        return group
+          .map((item) => item.note + (item.preferred ? "@" + item.preferred : ""))
+          .join(" -> ");
+      }
+
+      function normalizeSequencerLineGroupLengths(groups, lineGroupLengths) {
+        if (!Array.isArray(lineGroupLengths) || lineGroupLengths.length === 0) {
+          return groups.length > 0 ? [groups.length] : [];
+        }
+        const cleaned = lineGroupLengths
+          .map((count) => Math.max(0, Number(count) || 0))
+          .filter((count) => count > 0);
+        const total = cleaned.reduce((sum, count) => sum + count, 0);
+        return total === groups.length ? cleaned : (groups.length > 0 ? [groups.length] : []);
+      }
+
+      function serializeSequencerLayout(groups, lineGroupLengths) {
         if (!groups || groups.length === 0) {
           return "";
         }
-        return groups
-          .map((group) =>
-            group
-              .map((item) => item.note + (item.preferred ? "@" + item.preferred : ""))
-              .join(" -> ")
-          )
-          .join(" ||\n");
+        const safeLineGroupLengths = normalizeSequencerLineGroupLengths(groups, lineGroupLengths);
+        const lines = [];
+        let cursor = 0;
+        for (const groupCount of safeLineGroupLengths) {
+          const lineGroups = groups.slice(cursor, cursor + groupCount);
+          if (lineGroups.length > 0) {
+            lines.push(lineGroups.map(formatSequencerGroup).join(" || "));
+          }
+          cursor += groupCount;
+        }
+        if (cursor < groups.length) {
+          lines.push(groups.slice(cursor).map(formatSequencerGroup).join(" || "));
+        }
+        return lines.join(" ||\n");
+      }
+
+      function serializeSequencerGroups(groups) {
+        return serializeSequencerLayout(groups, groups && groups.length > 0 ? [groups.length] : []);
+      }
+
+      function isSequencerNextLineArmed() {
+        return /\|\|\s*\r?\n\s*$/.test(seqEls.editor.value || "");
+      }
+
+      function updateSequencerNextLineState() {
+        const armed = isSequencerNextLineArmed();
+        seqEls.nextLineBtn.classList.toggle("active", armed);
+        seqEls.nextLineBtn.setAttribute("aria-pressed", armed ? "true" : "false");
+        seqEls.nextLineBtn.dataset.state = armed ? "on" : "off";
+        seqEls.nextLineBtn.textContent = armed ? "Next Line: On" : "Next Line: Off";
+        seqEls.nextLineBtn.title = armed
+          ? "The next selected fret starts a new tab line."
+          : "Click to make the next selected fret start a new tab line.";
       }
 
       function appendSequencerFromFret(noteName, stringId, fret) {
         const token = noteName + "@" + String(stringId) + ":" + String(fret);
+        const lineReadyBase = seqEls.editor.value.replace(/[ \t]+$/g, "");
         const base = seqEls.editor.value.replace(/\s+$/g, "");
-        if (!base) {
+        if (!lineReadyBase.trim()) {
           seqEls.editor.value = token;
+        } else if (isSequencerNextLineArmed()) {
+          seqEls.editor.value = lineReadyBase + token;
         } else if (/(?:\|\||->)$/.test(base)) {
           seqEls.editor.value = base + " " + token;
         } else {
           seqEls.editor.value = base + " -> " + token;
         }
         writeText(KEYS.seqEditor, seqEls.editor.value);
+        updateSequencerNextLineState();
       }
 
       function sequencerInsertSpace() {
@@ -1679,41 +2271,118 @@
         }
         seqEls.editor.value = base + " || ";
         writeText(KEYS.seqEditor, seqEls.editor.value);
+        updateSequencerNextLineState();
       }
 
       function sequencerInsertNextLine() {
+        if (isSequencerNextLineArmed()) {
+          const trimmed = seqEls.editor.value.replace(/[ \t]+$/g, "");
+          seqEls.editor.value = trimmed.replace(/[ \t]*\|\|[ \t]*(?:\r?\n)\s*$/, "");
+          writeText(KEYS.seqEditor, seqEls.editor.value);
+          updateSequencerNextLineState();
+          return;
+        }
+
         const base = seqEls.editor.value.replace(/\s+$/g, "");
         if (!base || /(?:\|\||->)$/.test(base)) {
           return;
         }
         seqEls.editor.value = base + " ||\n";
         writeText(KEYS.seqEditor, seqEls.editor.value);
+        updateSequencerNextLineState();
       }
 
       function sequencerUndo() {
-        let groups;
+        let layout;
         try {
-          groups = parseSequencerText(seqEls.editor.value);
+          layout = parseSequencerLayout(seqEls.editor.value);
         } catch (_error) {
           return;
         }
+        const groups = layout.groups.map((group) => group.slice());
+        const lineGroupLengths = layout.lineGroupLengths.slice();
         if (groups.length === 0) {
           return;
         }
+        let removedGroupIndex = -1;
         for (let i = groups.length - 1; i >= 0; i -= 1) {
           if (groups[i].length > 0) {
             groups[i].pop();
+            if (groups[i].length === 0) {
+              removedGroupIndex = i;
+            }
             break;
           }
         }
-        groups = groups.filter((group) => group.length > 0);
-        seqEls.editor.value = serializeSequencerGroups(groups);
+        if (removedGroupIndex >= 0) {
+          groups.splice(removedGroupIndex, 1);
+          let cursor = 0;
+          for (let i = 0; i < lineGroupLengths.length; i += 1) {
+            const count = lineGroupLengths[i];
+            if (removedGroupIndex < cursor + count) {
+              lineGroupLengths[i] = Math.max(0, count - 1);
+              break;
+            }
+            cursor += count;
+          }
+        }
+        seqEls.editor.value = serializeSequencerLayout(
+          groups,
+          lineGroupLengths.filter((count) => count > 0)
+        );
         writeText(KEYS.seqEditor, seqEls.editor.value);
+        updateSequencerNextLineState();
       }
 
       function setSequencerStatus(text, kind = "") {
         seqEls.status.textContent = text;
         seqEls.status.className = "status" + (kind ? " " + kind : "");
+      }
+
+      function setSequencerExportText(text) {
+        lastSequencerExportText = text || "";
+        seqEls.saveTxtBtn.disabled = !lastSequencerExportText.trim();
+      }
+
+      function buildSequencerExportText(tabsText, asciiText) {
+        const sequenceText = (seqEls.editor.value || "").trim() || "-";
+        const renderedAscii = (asciiText || "").trim() || "-";
+        return [
+          "Music Scale Studio - Generated Tabs",
+          "",
+          "Selected Sequence:",
+          sequenceText,
+          "",
+          tabsText || "Tabs: -",
+          "",
+          "ASCII Tab:",
+          renderedAscii,
+          "",
+        ].join("\r\n");
+      }
+
+      function saveSequencerTxt() {
+        if (!lastSequencerExportText.trim()) {
+          setSequencerStatus("Generate tabs before saving.", "warn");
+          return;
+        }
+
+        try {
+          const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+          const blob = new Blob([lastSequencerExportText], { type: "text/plain;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "music-scale-tabs-" + stamp + ".txt";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          setSequencerStatus("Tabs saved as TXT.", "ok");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Save failed.";
+          setSequencerStatus(message, "warn");
+        }
       }
 
       function updateSequencerFretboardGlow(groups) {
@@ -1738,15 +2407,17 @@
           return;
         }
 
-        let groups;
+        let layout;
         try {
-          groups = parseSequencerText(seqEls.editor.value);
+          layout = parseSequencerLayout(seqEls.editor.value);
         } catch (error) {
           updateSequencerFretboardGlow([]);
+          setSequencerExportText("");
           setSequencerStatus(error instanceof Error ? error.message : "Invalid sequence.", "warn");
           return;
         }
 
+        const groups = layout.groups;
         updateSequencerFretboardGlow(groups);
 
         writeText(KEYS.seqEditor, seqEls.editor.value);
@@ -1757,6 +2428,7 @@
           updateSequencerFretboardGlow([]);
           seqEls.tabTokens.textContent = "Tabs: -";
           seqEls.ascii.textContent = "-";
+          setSequencerExportText("");
           setSequencerStatus("No notes in sequence.", "warn");
           return;
         }
@@ -1773,6 +2445,7 @@
         const payload = {
           mode: "notes",
           note_groups: noteGroups,
+          line_group_lengths: layout.lineGroupLengths,
           tab_strategy: strategy,
           locked_string: seqEls.string.value || null,
           group_gap: 5,
@@ -1800,6 +2473,7 @@
           const tabs = Array.isArray(result.tab_tokens) ? result.tab_tokens : [];
           seqEls.tabTokens.textContent = "Tabs: " + (tabs.length > 0 ? tabs.join(" ") : "-");
           seqEls.ascii.textContent = typeof result.ascii_tab === "string" ? result.ascii_tab : "-";
+          setSequencerExportText(buildSequencerExportText(seqEls.tabTokens.textContent, seqEls.ascii.textContent));
           setSequencerStatus("Generated " + tabs.length + " tab positions.", "ok");
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection error.";
@@ -1833,6 +2507,8 @@
 
         transEls.mode.value = readText(KEYS.transMode, "notes") || "notes";
         transEls.input.value = readText(KEYS.transInput, "");
+        clearSelectedWavFile();
+        syncTranscriberWavTools();
         seqEls.editor.value = readText(KEYS.seqEditor, "");
         seqEls.strategy.value = readText(KEYS.seqStrategy, "as_selected") || "as_selected";
         seqEls.string.value = readText(KEYS.seqString, "");
@@ -1861,8 +2537,58 @@
           refreshScaleUI();
         });
 
-        transEls.mode.addEventListener("change", persistTranscriberInputs);
+        transEls.mode.addEventListener("change", () => {
+          persistTranscriberInputs();
+          syncTranscriberWavTools();
+        });
         transEls.input.addEventListener("input", persistTranscriberInputs);
+        transEls.wavBrowseBtn.addEventListener("click", () => {
+          transEls.wavFileInput.click();
+        });
+        transEls.wavClearBtn.addEventListener("click", () => {
+          clearSelectedWavFile();
+          setTransStatus("WAV selection cleared. Paste a path or choose another file.", "ok");
+        });
+        transEls.wavFileInput.addEventListener("change", () => {
+          const files = transEls.wavFileInput.files;
+          if (!files || files.length === 0) {
+            return;
+          }
+          setSelectedWavFile(files[0]);
+        });
+        transEls.wavDropZone.addEventListener("click", () => {
+          transEls.wavFileInput.click();
+        });
+        transEls.wavDropZone.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          transEls.wavFileInput.click();
+        });
+        for (const eventName of ["dragenter", "dragover"]) {
+          transEls.wavDropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            transEls.wavDropZone.classList.add("drag-over");
+          });
+        }
+        for (const eventName of ["dragleave", "drop"]) {
+          transEls.wavDropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            transEls.wavDropZone.classList.remove("drag-over");
+          });
+        }
+        transEls.wavDropZone.addEventListener("drop", (event) => {
+          const transfer = event.dataTransfer;
+          const files = transfer ? transfer.files : null;
+          if (!files || files.length === 0) {
+            setTransStatus("Drop a WAV file to transcribe.", "warn");
+            return;
+          }
+          setSelectedWavFile(files[0]);
+        });
         transEls.octaveDownBtn.addEventListener("click", () => shiftTranscriberOctave(-1));
         transEls.octaveUpBtn.addEventListener("click", () => shiftTranscriberOctave(1));
         transEls.stepDownBtn.addEventListener("click", () => shiftTranscriberStep(-1));
@@ -1873,6 +2599,7 @@
 
         seqEls.editor.addEventListener("input", () => {
           writeText(KEYS.seqEditor, seqEls.editor.value || "");
+          updateSequencerNextLineState();
         });
         seqEls.strategy.addEventListener("change", () => {
           writeText(KEYS.seqStrategy, seqEls.strategy.value || "as_selected");
@@ -1899,6 +2626,7 @@
             const pasted = await navigator.clipboard.readText();
             seqEls.editor.value = pasted;
             writeText(KEYS.seqEditor, pasted);
+            updateSequencerNextLineState();
             setSequencerStatus("Pasted. Click Update Tabs.", "ok");
           } catch (_error) {
             setSequencerStatus("Paste failed. Browser clipboard access is blocked.", "warn");
@@ -1911,6 +2639,8 @@
         seqEls.clearBtn.addEventListener("click", () => {
           seqEls.editor.value = "";
           writeText(KEYS.seqEditor, "");
+          updateSequencerNextLineState();
+          setSequencerExportText("");
           void refreshSequencerTabs();
         });
         seqEls.spaceBtn.addEventListener("click", () => {
@@ -1920,11 +2650,15 @@
         seqEls.nextLineBtn.addEventListener("click", () => {
           sequencerInsertNextLine();
         });
+        seqEls.saveTxtBtn.addEventListener("click", () => {
+          saveSequencerTxt();
+        });
       }
 
       async function init() {
         restorePersistedState();
         attachEvents();
+        updateSequencerNextLineState();
 
         const initialMode = PATH_TO_MODE[window.location.pathname] || readText(KEYS.activeMode, "scale");
         setMode(initialMode, true);
@@ -1952,6 +2686,7 @@
           } else {
             seqEls.tabTokens.textContent = "Tabs: -";
             seqEls.ascii.textContent = "-";
+            setSequencerExportText("");
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to load configuration.";

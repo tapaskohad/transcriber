@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
+import math
 import threading
+import time
 import unittest
+import wave
 from http.server import ThreadingHTTPServer
 from typing import cast
 from urllib.error import HTTPError
@@ -83,6 +88,29 @@ class WebApiTests(unittest.TestCase):
         if not isinstance(value, list):
             self.fail(f"Expected '{field}' to be a list, got {type(value).__name__}.")
         return value
+
+    def _build_test_wav_bytes(self) -> bytes:
+        sample_rate = 8000
+        frame_count = int(sample_rate * 0.20)
+        amplitude = int(32767 * 0.36)
+
+        frames = bytearray()
+        for index in range(frame_count):
+            phase = (2.0 * math.pi * 440.0 * index) / sample_rate
+            sample = int(amplitude * math.sin(phase))
+            frames.extend(sample.to_bytes(2, byteorder="little", signed=True))
+
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(bytes(frames))
+
+        return buffer.getvalue()
+
+    def _build_test_wav_base64(self) -> str:
+        return base64.b64encode(self._build_test_wav_bytes()).decode("ascii")
 
     def test_get_config_supports_query_string(self) -> None:
         status, payload = self._request_json("/api/config?cache=1")
@@ -180,6 +208,25 @@ class WebApiTests(unittest.TestCase):
         ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
         self.assertIn("2---------3", ascii_tab)
 
+    def test_transcribe_notes_mode_respects_explicit_tab_lines(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["E4"], ["F#4"], ["G4"], ["A4"], ["B4"], ["C5"]],
+                "line_group_lengths": [1, 1, 1, 1, 1, 1],
+                "tab_strategy": "single_string",
+                "locked_string": 1,
+                "group_gap": 5,
+            },
+        )
+
+        self.assertEqual(status, 200)
+        ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
+        self.assertEqual(ascii_tab.count("e|"), 6)
+        self.assertIn("\n\n", ascii_tab)
+
     def test_transcribe_notes_mode_accepts_tab_tokens_as_input(self) -> None:
         status, payload = self._request_json(
             "/api/transcribe",
@@ -240,6 +287,75 @@ class WebApiTests(unittest.TestCase):
         )
         notes = self._require_list(payload["notes"], "notes")
         self.assertEqual(len(notes), 8)
+
+    def test_transcribe_wav_mode_accepts_base64_payload(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "wav",
+                "wav_base64": self._build_test_wav_base64(),
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["mode"], "wav")
+        notes = self._require_list(payload["notes"], "notes")
+        tabs = self._require_list(payload["tab_tokens"], "tab_tokens")
+        self.assertEqual(len(notes), len(tabs))
+
+    def test_transcribe_wav_upload_endpoint_accepts_multipart_file(self) -> None:
+        wav_bytes = self._build_test_wav_bytes()
+        boundary = "----music-scale-test-boundary"
+        body = (
+            f"--{boundary}\r\n"
+            "Content-Disposition: form-data; name=\"wav_file\"; filename=\"sample.wav\"\r\n"
+            "Content-Type: audio/wav\r\n\r\n"
+        ).encode("utf-8") + wav_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+        headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+        request = Request(
+            f"{self._base_url}/api/transcribe-wav-upload",
+            data=body,
+            method="POST",
+            headers=headers,
+        )
+
+        try:
+            with urlopen(request, timeout=4) as response:
+                parsed = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 202)
+        except HTTPError as exc:
+            parsed = json.loads(exc.read().decode("utf-8"))
+            self.fail(f"Expected 202 response, got {exc.code}: {parsed}")
+
+        job_id = self._require_str(parsed.get("job_id"), "job_id")
+        final_payload: dict[str, object] | None = None
+        for _ in range(120):
+            progress_request = Request(
+                f"{self._base_url}/api/transcribe-progress?job_id={job_id}",
+                method="GET",
+            )
+            with urlopen(progress_request, timeout=4) as progress_response:
+                progress_payload = json.loads(progress_response.read().decode("utf-8"))
+            if bool(progress_payload.get("done", False)):
+                final_payload = cast(dict[str, object], progress_payload)
+                break
+            time.sleep(0.05)
+
+        if final_payload is None:
+            self.fail("Timed out waiting for wav transcription job completion.")
+
+        if final_payload.get("error"):
+            self.fail(f"WAV transcription job failed: {final_payload.get('error')}")
+
+        result = cast(dict[str, object], final_payload.get("result"))
+        self.assertIsInstance(result, dict)
+
+        self.assertEqual(result["mode"], "wav")
+        notes = self._require_list(result["notes"], "notes")
+        tabs = self._require_list(result["tab_tokens"], "tab_tokens")
+        self.assertEqual(len(notes), len(tabs))
 
     def test_rejects_non_object_json_body(self) -> None:
         status, payload = self._request_json(

@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import cgi
 import json
 import math
 from pathlib import Path
+import shutil
+import tempfile
 import threading
+import time
+import uuid
+import wave
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .finder import ScaleFinder
 from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name, parse_tab_position
@@ -48,6 +56,49 @@ def _chunk_by_lengths(values: list[str], lengths: list[int]) -> list[list[str]]:
     if cursor < len(values):
         chunks.append(values[cursor:])
     return chunks
+
+
+def _format_ascii_tab_by_lines(
+    tabs: Any,
+    *,
+    group_lengths: list[int],
+    line_group_lengths: list[int],
+    group_gap: int,
+) -> str:
+    """Render tab groups across explicit sequencer lines."""
+    if not group_lengths:
+        return format_ascii_tab(tabs)
+
+    if not line_group_lengths:
+        return format_ascii_tab(
+            tabs,
+            group_lengths=group_lengths,
+            group_gap=group_gap,
+        )
+
+    if sum(line_group_lengths) != len(group_lengths):
+        raise ValueError("Field 'line_group_lengths' must align with note_groups.")
+
+    blocks: list[str] = []
+    group_cursor = 0
+    tab_cursor = 0
+    for line_group_count in line_group_lengths:
+        line_group_lengths_slice = group_lengths[
+            group_cursor : group_cursor + line_group_count
+        ]
+        line_tab_count = sum(line_group_lengths_slice)
+        if line_tab_count > 0:
+            blocks.append(
+                format_ascii_tab(
+                    tabs[tab_cursor : tab_cursor + line_tab_count],
+                    group_lengths=line_group_lengths_slice,
+                    group_gap=group_gap,
+                )
+            )
+        group_cursor += line_group_count
+        tab_cursor += line_tab_count
+
+    return "\n\n".join(blocks)
 
 
 def _build_config(max_fret: int = 12, min_notes: int = 3) -> dict[str, Any]:
@@ -102,7 +153,11 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
     html = _build_html().encode("utf-8")
     transcriber_html = _build_transcriber_html().encode("utf-8")
     tab_sequencer_html = _build_tab_sequencer_html().encode("utf-8")
-    max_body_bytes = 512 * 1024
+    max_body_bytes = 12 * 1024 * 1024
+    max_upload_body_bytes = 256 * 1024 * 1024
+    transcribe_jobs: dict[str, dict[str, Any]] = {}
+    transcribe_jobs_lock = threading.Lock()
+    transcribe_job_ttl_s = 30 * 60
 
     def log_message(self, format: str, *args: Any) -> None:
         # Silence noisy request logs.
@@ -110,6 +165,58 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
 
     def _request_path(self) -> str:
         return urlsplit(self.path).path
+
+    def _request_query(self) -> dict[str, list[str]]:
+        return parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+
+    @classmethod
+    def _cleanup_old_jobs(cls) -> None:
+        now = time.time()
+        stale_ids: list[str] = []
+        for job_id, job in cls.transcribe_jobs.items():
+            updated_at = float(job.get("updated_at", now))
+            if now - updated_at <= cls.transcribe_job_ttl_s:
+                continue
+            stale_ids.append(job_id)
+        for job_id in stale_ids:
+            cls.transcribe_jobs.pop(job_id, None)
+
+    @classmethod
+    def _update_job(cls, job_id: str, **fields: Any) -> None:
+        with cls.transcribe_jobs_lock:
+            job = cls.transcribe_jobs.get(job_id)
+            if job is None:
+                return
+            job.update(fields)
+            job["updated_at"] = time.time()
+
+    @classmethod
+    def _create_job(cls, *, filename: str = "") -> str:
+        job_id = uuid.uuid4().hex
+        created_at = time.time()
+        with cls.transcribe_jobs_lock:
+            cls._cleanup_old_jobs()
+            cls.transcribe_jobs[job_id] = {
+                "job_id": job_id,
+                "status": "queued",
+                "progress_percent": 0.0,
+                "message": "Queued",
+                "filename": filename,
+                "done": False,
+                "error": None,
+                "result": None,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+        return job_id
+
+    @classmethod
+    def _get_job(cls, job_id: str) -> dict[str, Any] | None:
+        with cls.transcribe_jobs_lock:
+            job = cls.transcribe_jobs.get(job_id)
+            if job is None:
+                return None
+            return dict(job)
 
     def do_GET(self) -> None:
         path = self._request_path()
@@ -122,10 +229,19 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             self._send_json(self.config)
             return
 
+        if path == "/api/transcribe-progress":
+            self._handle_transcribe_progress()
+            return
+
         self._send_json({"error": "Not found."}, status=404)
 
     def do_POST(self) -> None:
         path = self._request_path()
+
+        if path == "/api/transcribe-wav-upload":
+            self._handle_transcribe_wav_upload()
+            return
+
         body = self._read_json_body()
         if body is None:
             return
@@ -140,7 +256,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
 
         self._send_json({"error": "Not found."}, status=404)
 
-    def _read_json_body(self) -> dict[str, Any] | None:
+    def _parse_content_length(self) -> int | None:
         raw_length = self.headers.get("Content-Length", "0")
         try:
             content_length = int(raw_length)
@@ -151,8 +267,24 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         if content_length < 0:
             self._send_json({"error": "Content-Length cannot be negative."}, status=400)
             return None
+        return content_length
+
+    def _drain_request_body(self, content_length: int) -> None:
+        remaining = max(0, content_length)
+        while remaining > 0:
+            chunk = self.rfile.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+
+    def _read_json_body(self) -> dict[str, Any] | None:
+        content_length = self._parse_content_length()
+        if content_length is None:
+            return None
 
         if content_length > self.max_body_bytes:
+            # Drain oversized request bodies so the client can receive a clean 413 response.
+            self._drain_request_body(content_length)
             self._send_json(
                 {"error": f"Request body too large (max {self.max_body_bytes} bytes)."},
                 status=413,
@@ -206,12 +338,238 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         }
         self._send_json(payload)
 
+    def _build_transcribe_payload(
+        self,
+        *,
+        mode: str,
+        result: Any,
+        note_groups_payload: list[list[str]] | None = None,
+        tab_groups_payload: list[list[str]] | None = None,
+        ascii_tab_payload: str = "",
+    ) -> dict[str, Any]:
+        pitch_classes: list[str] = []
+        seen: set[str] = set()
+        for event in result.events:
+            if event.note not in seen:
+                seen.add(event.note)
+                pitch_classes.append(event.note)
+
+        return {
+            "mode": mode,
+            "notes": list(result.notes),
+            "tab_tokens": list(result.tab_tokens),
+            "note_groups": note_groups_payload or [],
+            "tab_groups": tab_groups_payload or [],
+            "ascii_tab": ascii_tab_payload or result.ascii_tab,
+            "pitch_classes": pitch_classes,
+            "events": [
+                {
+                    "note": event.note_name,
+                    "frequency_hz": event.frequency_hz,
+                    "start_s": event.start_s,
+                    "end_s": event.end_s,
+                }
+                for event in result.events
+            ],
+            "tabs": [
+                {
+                    "string": tab.string_id,
+                    "fret": tab.fret,
+                    "note": f"{tab.note}{tab.octave}",
+                }
+                for tab in result.tabs
+            ],
+        }
+
+    def _handle_transcribe_progress(self) -> None:
+        query = self._request_query()
+        raw_job_id = query.get("job_id", [""])[0]
+        job_id = str(raw_job_id).strip()
+        if not job_id:
+            self._send_json({"error": "Query parameter 'job_id' is required."}, status=400)
+            return
+
+        job = self._get_job(job_id)
+        if job is None:
+            self._send_json({"error": f"Job not found: {job_id}"}, status=404)
+            return
+
+        payload = {
+            "job_id": job_id,
+            "status": job.get("status", "unknown"),
+            "progress_percent": float(job.get("progress_percent", 0.0)),
+            "message": str(job.get("message", "")),
+            "done": bool(job.get("done", False)),
+            "error": job.get("error", None),
+        }
+        if payload["done"] and job.get("result") is not None:
+            payload["result"] = job["result"]
+        self._send_json(payload)
+
+    def _run_wav_transcribe_job(self, *, job_id: str, wav_path: Path) -> None:
+        try:
+            estimated_analysis_frames = 0
+            try:
+                with wave.open(str(wav_path), "rb") as wav_file:
+                    frame_count = int(wav_file.getnframes())
+                    sample_rate = max(1, int(wav_file.getframerate()))
+                    frame_size = max(64, int(sample_rate * (40.0 / 1000.0)))
+                    frame_hop = max(16, int(sample_rate * (10.0 / 1000.0)))
+                    if frame_count >= frame_size:
+                        estimated_analysis_frames = (
+                            ((frame_count - frame_size) // frame_hop) + 1
+                        )
+            except (OSError, wave.Error):
+                estimated_analysis_frames = 0
+
+            self._update_job(
+                job_id,
+                status="running",
+                progress_percent=1.0,
+                message=(
+                    f"Estimated {estimated_analysis_frames} analysis frames"
+                    if estimated_analysis_frames > 0
+                    else "Preparing WAV"
+                ),
+                done=False,
+                error=None,
+                result=None,
+            )
+            result = self.transcriber.transcribe_wav(
+                wav_path,
+                progress_callback=lambda progress, stage: self._update_job(
+                    job_id,
+                    status="running",
+                    progress_percent=progress,
+                    message=stage or "Transcribing",
+                    done=False,
+                ),
+            )
+            payload = self._build_transcribe_payload(
+                mode="wav",
+                result=result,
+                ascii_tab_payload=result.ascii_tab,
+            )
+            self._update_job(
+                job_id,
+                status="completed",
+                progress_percent=100.0,
+                message="Completed",
+                done=True,
+                error=None,
+                result=payload,
+            )
+        except (TypeError, ValueError, FileNotFoundError, wave.Error) as exc:
+            self._update_job(
+                job_id,
+                status="failed",
+                progress_percent=100.0,
+                message="Failed",
+                done=True,
+                error=str(exc),
+                result=None,
+            )
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            self._update_job(
+                job_id,
+                status="failed",
+                progress_percent=100.0,
+                message="Failed",
+                done=True,
+                error=f"Unexpected error: {exc}",
+                result=None,
+            )
+        finally:
+            wav_path.unlink(missing_ok=True)
+
+    def _handle_transcribe_wav_upload(self) -> None:
+        content_length = self._parse_content_length()
+        if content_length is None:
+            return
+        if content_length <= 0:
+            self._send_json({"error": "Upload body is empty."}, status=400)
+            return
+        if content_length > self.max_upload_body_bytes:
+            self._drain_request_body(content_length)
+            self._send_json(
+                {
+                    "error": (
+                        "Upload body too large "
+                        f"(max {self.max_upload_body_bytes} bytes)."
+                    )
+                },
+                status=413,
+            )
+            return
+
+        content_type = str(self.headers.get("Content-Type", "")).lower()
+        if "multipart/form-data" not in content_type:
+            self._send_json(
+                {"error": "Use multipart/form-data with field 'wav_file'."},
+                status=400,
+            )
+            return
+
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={
+                "REQUEST_METHOD": "POST",
+                "CONTENT_TYPE": self.headers.get("Content-Type", ""),
+                "CONTENT_LENGTH": str(content_length),
+            },
+            keep_blank_values=True,
+        )
+
+        if "wav_file" not in form:
+            self._send_json({"error": "Field 'wav_file' is required."}, status=400)
+            return
+
+        file_field = form["wav_file"]
+        if isinstance(file_field, list):
+            file_field = file_field[0] if file_field else None
+        if file_field is None or getattr(file_field, "file", None) is None:
+            self._send_json({"error": "Field 'wav_file' is required."}, status=400)
+            return
+
+        filename = str(getattr(file_field, "filename", "") or "").strip()
+        if filename and not filename.lower().endswith(".wav"):
+            self._send_json({"error": "Uploaded file must be a .wav file."}, status=400)
+            return
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as temp_file:
+            temp_wav_path = Path(temp_file.name)
+            uploaded_stream = file_field.file
+            try:
+                uploaded_stream.seek(0)
+            except (OSError, AttributeError):
+                pass
+            shutil.copyfileobj(uploaded_stream, temp_file, length=1024 * 1024)
+
+        job_id = self._create_job(filename=filename)
+        worker = threading.Thread(
+            target=self._run_wav_transcribe_job,
+            kwargs={"job_id": job_id, "wav_path": temp_wav_path},
+            daemon=True,
+        )
+        worker.start()
+        self._send_json(
+            {
+                "job_id": job_id,
+                "status": "queued",
+                "message": "Upload accepted. Transcription started.",
+                "monitor_url": f"/api/transcribe-progress?job_id={job_id}",
+            },
+            status=202,
+        )
+
     def _handle_transcribe(self, body: dict[str, Any]) -> None:
         mode = str(body.get("mode", "notes")).strip().lower()
         tab_strategy = str(body.get("tab_strategy", "balanced")).strip().lower()
         locked_string_raw = body.get("locked_string", None)
         group_gap_raw = body.get("group_gap", 7)
         raw_preferred_tabs = body.get("preferred_tabs", None)
+        raw_line_group_lengths = body.get("line_group_lengths", None)
         note_groups_payload: list[list[str]] = []
         tab_groups_payload: list[list[str]] = []
         ascii_tab_payload = ""
@@ -299,16 +657,25 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                     preferred_tabs=preferred_tabs,
                 )
                 group_lengths = [len(group) for group in note_groups]
+                line_group_lengths: list[int] = []
+                if raw_line_group_lengths is not None:
+                    if not isinstance(raw_line_group_lengths, list):
+                        raise ValueError("Field 'line_group_lengths' must be a list.")
+                    for raw_count in raw_line_group_lengths:
+                        count = int(raw_count)
+                        if count <= 0:
+                            raise ValueError(
+                                "Field 'line_group_lengths' must contain positive integers."
+                            )
+                        line_group_lengths.append(count)
+
                 note_groups_payload = _chunk_by_lengths(list(result.notes), group_lengths)
                 tab_groups_payload = _chunk_by_lengths(list(result.tab_tokens), group_lengths)
-                ascii_tab_payload = (
-                    format_ascii_tab(
-                        result.tabs,
-                        group_lengths=group_lengths,
-                        group_gap=group_gap,
-                    )
-                    if len(group_lengths) > 1
-                    else result.ascii_tab
+                ascii_tab_payload = _format_ascii_tab_by_lines(
+                    result.tabs,
+                    group_lengths=group_lengths,
+                    line_group_lengths=line_group_lengths,
+                    group_gap=group_gap,
                 )
             elif mode == "frequencies":
                 raw_frequencies = body.get("frequencies", [])
@@ -332,50 +699,47 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                 )
                 ascii_tab_payload = result.ascii_tab
             elif mode == "wav":
+                wav_base64 = str(body.get("wav_base64", "")).strip()
                 wav_path = str(body.get("wav_path", "")).strip()
-                if not wav_path:
-                    raise ValueError("Field 'wav_path' is required for wav mode.")
-                result = self.transcriber.transcribe_wav(wav_path)
+                if wav_base64:
+                    try:
+                        wav_bytes = base64.b64decode(wav_base64, validate=True)
+                    except (binascii.Error, ValueError) as exc:
+                        raise ValueError("Field 'wav_base64' must be valid base64.") from exc
+                    if not wav_bytes:
+                        raise ValueError("Field 'wav_base64' is empty.")
+
+                    with tempfile.NamedTemporaryFile(
+                        mode="wb",
+                        suffix=".wav",
+                        delete=False,
+                    ) as temp_file:
+                        temp_file.write(wav_bytes)
+                        temp_wav_path = Path(temp_file.name)
+                    try:
+                        result = self.transcriber.transcribe_wav(temp_wav_path)
+                    finally:
+                        temp_wav_path.unlink(missing_ok=True)
+                elif wav_path:
+                    result = self.transcriber.transcribe_wav(wav_path)
+                else:
+                    raise ValueError(
+                        "Provide either 'wav_base64' or 'wav_path' for wav mode."
+                    )
                 ascii_tab_payload = result.ascii_tab
             else:
                 raise ValueError("Unsupported mode. Use notes, frequencies, or wav.")
-        except (TypeError, ValueError, FileNotFoundError) as exc:
+        except (TypeError, ValueError, FileNotFoundError, wave.Error) as exc:
             self._send_json({"error": str(exc)}, status=400)
             return
 
-        pitch_classes: list[str] = []
-        seen: set[str] = set()
-        for event in result.events:
-            if event.note not in seen:
-                seen.add(event.note)
-                pitch_classes.append(event.note)
-
-        payload = {
-            "mode": mode,
-            "notes": list(result.notes),
-            "tab_tokens": list(result.tab_tokens),
-            "note_groups": note_groups_payload,
-            "tab_groups": tab_groups_payload,
-            "ascii_tab": ascii_tab_payload or result.ascii_tab,
-            "pitch_classes": pitch_classes,
-            "events": [
-                {
-                    "note": event.note_name,
-                    "frequency_hz": event.frequency_hz,
-                    "start_s": event.start_s,
-                    "end_s": event.end_s,
-                }
-                for event in result.events
-            ],
-            "tabs": [
-                {
-                    "string": tab.string_id,
-                    "fret": tab.fret,
-                    "note": f"{tab.note}{tab.octave}",
-                }
-                for tab in result.tabs
-            ],
-        }
+        payload = self._build_transcribe_payload(
+            mode=mode,
+            result=result,
+            note_groups_payload=note_groups_payload,
+            tab_groups_payload=tab_groups_payload,
+            ascii_tab_payload=ascii_tab_payload,
+        )
         self._send_json(payload)
 
     def _send_html(self, data: bytes, status: int = 200) -> None:

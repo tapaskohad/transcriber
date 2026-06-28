@@ -351,6 +351,58 @@
       line-height: 1.45;
     }
 
+    .wav-input-tools {
+      display: none;
+      gap: 8px;
+    }
+
+    .wav-input-tools.active {
+      display: grid;
+    }
+
+    .wav-upload-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .wav-file-line {
+      margin: 0;
+      color: #5a7188;
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
+    .wav-drop-zone {
+      border: 1px dashed #bfd0e3;
+      border-radius: 10px;
+      background: rgba(247, 251, 255, 0.76);
+      color: #506984;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      padding: 10px;
+      transition: border-color 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+    }
+
+    .wav-drop-zone:hover {
+      border-color: #8db0d3;
+      color: #304963;
+    }
+
+    .wav-drop-zone.drag-over {
+      border-color: #5f93c6;
+      box-shadow: 0 0 0 2px rgba(106, 148, 188, 0.3);
+      color: #233f5b;
+    }
+
     .action-btn {
       min-height: 44px;
       border: 1px solid var(--accent-strong);
@@ -529,6 +581,27 @@
       color: #d8e6f7;
     }
 
+    html[data-theme="dark"] .wav-file-line {
+      color: #9eb4cc;
+    }
+
+    html[data-theme="dark"] .wav-drop-zone {
+      border-color: #3c5672;
+      background: rgba(20, 34, 49, 0.88);
+      color: #a9bed6;
+    }
+
+    html[data-theme="dark"] .wav-drop-zone:hover {
+      border-color: #6e93b6;
+      color: #d1e2f5;
+    }
+
+    html[data-theme="dark"] .wav-drop-zone.drag-over {
+      border-color: #88a9cb;
+      box-shadow: 0 0 0 2px rgba(116, 150, 186, 0.34);
+      color: #d9ebff;
+    }
+
     html[data-theme="dark"] .hint {
       color: #9eb4cc;
     }
@@ -606,11 +679,28 @@
       <select id="transcribeMode" class="control-select">
         <option value="notes">Note Tokens (E4 F#4 G4)</option>
         <option value="frequencies">Frequencies (440 493.88 523.25)</option>
-        <option value="wav">WAV File Path</option>
+        <option value="wav">WAV File (Drop / Browse / Path)</option>
       </select>
 
       <label class="control-label" for="transcribeInput">Melody Input</label>
-      <textarea id="transcribeInput" class="transcribe-input" placeholder="Notes: E4 F#4 G4&#10;Frequencies: 440 493.88 523.25&#10;WAV: C:\path\to\melody.wav"></textarea>
+      <textarea id="transcribeInput" class="transcribe-input" placeholder="Notes: E4 F#4 G4&#10;Frequencies: 440 493.88 523.25&#10;WAV path (optional): C:\path\to\melody.wav"></textarea>
+      <div id="wavTools" class="wav-input-tools" hidden>
+        <input id="wavFileInput" type="file" accept=".wav,audio/wav,audio/x-wav,audio/wave,audio/vnd.wave" hidden />
+        <div class="wav-upload-row">
+          <button id="wavBrowseBtn" class="action-btn" type="button">Choose WAV File</button>
+          <button id="wavClearBtn" class="action-btn save-tabs-btn" type="button">Clear WAV</button>
+          <p id="wavFileLine" class="wav-file-line">No WAV selected. Choose a WAV up to 200 MB, or paste a WAV path in the input box.</p>
+        </div>
+        <div
+          id="wavDropZone"
+          class="wav-drop-zone"
+          role="button"
+          tabindex="0"
+          aria-label="Drop a WAV file here or press Enter to browse files"
+        >
+          Drag and drop a WAV file here
+        </div>
+      </div>
 
       <div class="transcribe-actions">
         <button id="octaveDownBtn" class="action-btn octave-btn" type="button" title="Shift notes down one octave" aria-label="Shift notes down one octave">-</button>
@@ -637,9 +727,20 @@
     const THEME_KEY = "music_scale_theme";
     const SOUND_KEY = "music_scale_sound";
     const SELECTED_COUNT_KEY = "music_scale_selected_count";
+    const MAX_BROWSER_WAV_MB = 200;
+    const MAX_BROWSER_WAV_BYTES = MAX_BROWSER_WAV_MB * 1024 * 1024;
+    const TRANSCRIBE_PROGRESS_SCHEDULE = [
+      1, 4, 11, 21, 30, 38, 45, 52, 58, 63, 68, 72, 76, 80, 83, 86, 89, 91, 93, 94, 95
+    ];
 
     const transcribeModeEl = document.getElementById("transcribeMode");
     const transcribeInputEl = document.getElementById("transcribeInput");
+    const wavToolsEl = document.getElementById("wavTools");
+    const wavFileInputEl = document.getElementById("wavFileInput");
+    const wavBrowseBtnEl = document.getElementById("wavBrowseBtn");
+    const wavClearBtnEl = document.getElementById("wavClearBtn");
+    const wavFileLineEl = document.getElementById("wavFileLine");
+    const wavDropZoneEl = document.getElementById("wavDropZone");
     const octaveDownBtnEl = document.getElementById("octaveDownBtn");
     const octaveUpBtnEl = document.getElementById("octaveUpBtn");
     const transcribeBtnEl = document.getElementById("transcribeBtn");
@@ -656,6 +757,7 @@
 
     let pendingNoteGroupLengths = [];
     let lastTabsExportText = "";
+    let selectedWavFile = null;
 
     function getStoredTheme() {
       try {
@@ -904,6 +1006,47 @@
       const notesMode = transcribeModeEl.value === "notes";
       octaveDownBtnEl.disabled = !notesMode;
       octaveUpBtnEl.disabled = !notesMode;
+      const wavMode = transcribeModeEl.value === "wav";
+      wavToolsEl.hidden = !wavMode;
+      wavToolsEl.classList.toggle("active", wavMode);
+    }
+
+    function isWavFile(file) {
+      if (!file) {
+        return false;
+      }
+      const name = String(file.name || "").toLowerCase();
+      const type = String(file.type || "").toLowerCase();
+      if (name.endsWith(".wav")) {
+        return true;
+      }
+      return type === "audio/wav" || type === "audio/x-wav" || type === "audio/wave" || type === "audio/vnd.wave";
+    }
+
+    function setSelectedWavFile(file) {
+      if (!file) {
+        return;
+      }
+      if (!isWavFile(file)) {
+        setStatus("Please choose a .wav file.");
+        return;
+      }
+      if (file.size > MAX_BROWSER_WAV_BYTES) {
+        clearSelectedWavFile();
+        setStatus(`WAV file is too large for browser upload. Use a file up to ${MAX_BROWSER_WAV_MB} MB, or paste a WAV path.`);
+        return;
+      }
+      selectedWavFile = file;
+      wavClearBtnEl.disabled = false;
+      wavFileLineEl.textContent = `Selected WAV: ${file.name}`;
+      setStatus(`WAV file ready: ${file.name}`);
+    }
+
+    function clearSelectedWavFile() {
+      selectedWavFile = null;
+      wavFileInputEl.value = "";
+      wavClearBtnEl.disabled = true;
+      wavFileLineEl.textContent = `No WAV selected. Choose a WAV up to ${MAX_BROWSER_WAV_MB} MB, or paste a WAV path in the input box.`;
     }
 
     function shiftOctaveInToken(token, delta) {
@@ -959,6 +1102,200 @@
 
     function setStatus(text) {
       transcribeStatusEl.textContent = text;
+    }
+
+    function formatProgressText(prefix, percent) {
+      const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+      const width = 42;
+      const filled = Math.max(1, Math.min(width, Math.round((safePercent / 100) * width)));
+      const bar = "-".repeat(filled).padEnd(width, " ");
+      return `${prefix} ${bar} ${safePercent}%`;
+    }
+
+    function startProgressRamp(
+      onUpdate,
+      {
+        prefix = "Transcribing",
+        start = 8,
+        end = 98,
+        step = 1,
+        intervalMs = 320,
+        sustainAtEnd = false,
+        sustainMin = 95,
+        sustainMax = 98,
+        schedule = null,
+      } = {}
+    ) {
+      let current = Math.max(0, Math.min(100, Math.round(start)));
+      const scheduleValues = Array.isArray(schedule) ? schedule
+        .map((value) => Math.max(0, Math.min(100, Math.round(value))))
+        .filter((value) => Number.isFinite(value))
+        : [];
+      let scheduleIndex = 0;
+      if (scheduleValues.length > 0) {
+        current = scheduleValues[0];
+      }
+      let tick = 0;
+      onUpdate(formatProgressText(prefix, current));
+      const timerId = window.setInterval(() => {
+        tick += 1;
+        if (scheduleValues.length > 0 && scheduleIndex < scheduleValues.length - 1) {
+          scheduleIndex += 1;
+          current = scheduleValues[scheduleIndex];
+        } else if (current < end) {
+          current = Math.min(end, current + step);
+        } else if (sustainAtEnd) {
+          const lower = Math.max(0, Math.min(100, Math.round(sustainMin)));
+          const upper = Math.max(lower, Math.min(100, Math.round(sustainMax)));
+          const span = Math.max(1, upper - lower + 1);
+          current = lower + (tick % span);
+        }
+        onUpdate(formatProgressText(prefix, current));
+      }, intervalMs);
+      return {
+        stop(finalPercent = null) {
+          window.clearInterval(timerId);
+          if (finalPercent !== null && finalPercent !== undefined) {
+            onUpdate(formatProgressText(prefix, finalPercent));
+          }
+        }
+      };
+    }
+
+    function parseJsonPayload(rawText) {
+      const source = typeof rawText === "string" ? rawText.trim() : "";
+      if (!source) {
+        return null;
+      }
+      try {
+        return JSON.parse(source);
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    function postJsonWithXhr(url, payload) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url);
+        xhr.responseType = "text";
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onload = () => {
+          const parsed = parseJsonPayload(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            if (!parsed || typeof parsed !== "object") {
+              reject(new Error("Invalid server response."));
+              return;
+            }
+            resolve(parsed);
+            return;
+          }
+          const message = parsed && typeof parsed.error === "string"
+            ? parsed.error
+            : `Request failed (${xhr.status}).`;
+          reject(new Error(message));
+        };
+        xhr.onerror = () => reject(new Error("Failed to reach server."));
+        xhr.onabort = () => reject(new Error("Request cancelled."));
+        xhr.ontimeout = () => reject(new Error("Request timed out."));
+        xhr.send(JSON.stringify(payload));
+      });
+    }
+
+    function postWavUploadWithXhr(file, { onUploadProgress, onUploadComplete } = {}) {
+      return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append("wav_file", file, file.name || "melody.wav");
+
+        const xhr = new XMLHttpRequest();
+        if (typeof onUploadProgress === "function") {
+          xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable || event.total <= 0) {
+              return;
+            }
+            onUploadProgress(event.loaded / event.total);
+          };
+        }
+        if (typeof onUploadComplete === "function") {
+          xhr.upload.onload = () => {
+            onUploadComplete();
+          };
+        }
+        xhr.open("POST", "/api/transcribe-wav-upload");
+        xhr.responseType = "text";
+        xhr.onload = () => {
+          const parsed = parseJsonPayload(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            if (!parsed || typeof parsed !== "object") {
+              reject(new Error("Invalid server response."));
+              return;
+            }
+            resolve(parsed);
+            return;
+          }
+          const message = parsed && typeof parsed.error === "string"
+            ? parsed.error
+            : `Request failed (${xhr.status}).`;
+          reject(new Error(message));
+        };
+        xhr.onerror = () => reject(new Error("Failed to reach server."));
+        xhr.onabort = () => reject(new Error("Request cancelled."));
+        xhr.ontimeout = () => reject(new Error("Request timed out."));
+        xhr.send(formData);
+      });
+    }
+
+    async function waitForWavJobResult(jobId, { onProgress, pollMs = 320, timeoutMs = 30 * 60 * 1000 } = {}) {
+      const startedAt = Date.now();
+      const safeJobId = String(jobId || "").trim();
+      if (!safeJobId) {
+        throw new Error("Missing transcription job id.");
+      }
+
+      while (true) {
+        const response = await fetch(
+          "/api/transcribe-progress?job_id=" + encodeURIComponent(safeJobId),
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            payload && payload.error ? payload.error : "Failed to fetch transcription progress."
+          );
+        }
+
+        const progressRaw = Number(payload.progress_percent);
+        const progressPercent = Number.isFinite(progressRaw)
+          ? Math.max(0, Math.min(100, progressRaw))
+          : 0;
+        const stage = String(payload.message || "Transcribing").trim() || "Transcribing";
+        if (typeof onProgress === "function") {
+          onProgress({
+            progressPercent: progressPercent,
+            stage: stage,
+            done: Boolean(payload.done),
+            status: String(payload.status || ""),
+          });
+        }
+
+        if (payload.done) {
+          if (payload.error) {
+            throw new Error(String(payload.error));
+          }
+          if (!payload.result || typeof payload.result !== "object") {
+            throw new Error("Transcription completed without a result payload.");
+          }
+          return payload.result;
+        }
+
+        if (Date.now() - startedAt > timeoutMs) {
+          throw new Error("Transcription timed out.");
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, pollMs));
+      }
     }
 
     function defaultExportFileName() {
@@ -1086,16 +1423,16 @@
 
     async function runTranscription() {
       const raw = transcribeInputEl.value.trim();
-      if (!raw) {
-        setStatus("Enter melody input first.");
-        return;
-      }
-
       const mode = transcribeModeEl.value || "notes";
       const body = { mode };
+      let uploadWavFile = null;
       pendingNoteGroupLengths = [];
 
       if (mode === "notes") {
+        if (!raw) {
+          setStatus("Enter melody input first.");
+          return;
+        }
         const noteGroups = tokenizeInputByLine(raw);
         const notes = flattenTokenGroups(noteGroups);
         if (notes.length === 0) {
@@ -1125,23 +1462,61 @@
         body.frequencies = frequencies;
         body.frame_step_s = 0.05;
       } else if (mode === "wav") {
-        body.wav_path = raw;
+        if (selectedWavFile) {
+          if (selectedWavFile.size > MAX_BROWSER_WAV_BYTES) {
+            setStatus(`WAV file is too large for browser upload. Use a file up to ${MAX_BROWSER_WAV_MB} MB, or paste a WAV path.`);
+            return;
+          }
+          uploadWavFile = selectedWavFile;
+        } else if (raw) {
+          body.wav_path = raw;
+        } else {
+          setStatus("Drop/select a WAV file or paste a WAV path.");
+          return;
+        }
       } else {
         setStatus("Unsupported transcription mode.");
         return;
       }
 
-      setStatus("Transcribing melody...");
       try {
-        const response = await fetch("/api/transcribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        const payload = await response.json();
-
-        if (!response.ok) {
-          throw new Error(payload.error || "Failed to transcribe melody.");
+        let payload;
+        if (uploadWavFile) {
+          const startResponse = await postWavUploadWithXhr(uploadWavFile, {
+            onUploadProgress: (ratio) => {
+              const uploadPercent = Math.max(1, Math.min(99, ratio * 100));
+              setStatus(formatProgressText("Uploading WAV", uploadPercent));
+            },
+          });
+          const jobId = String(startResponse.job_id || "").trim();
+          if (!jobId) {
+            throw new Error("Server did not return a transcription job id.");
+          }
+          payload = await waitForWavJobResult(jobId, {
+            onProgress: ({ progressPercent, stage }) => {
+              setStatus(formatProgressText(stage || "Transcribing", progressPercent));
+            },
+          });
+        } else {
+          const progressRamp = startProgressRamp(
+            (text) => setStatus(text),
+            {
+              prefix: "Transcribing",
+              start: 1,
+              end: 98,
+              step: 1,
+              intervalMs: 420,
+              sustainAtEnd: true,
+              sustainMin: 95,
+              sustainMax: 98,
+              schedule: TRANSCRIBE_PROGRESS_SCHEDULE,
+            }
+          );
+          try {
+            payload = await postJsonWithXhr("/api/transcribe", body);
+          } finally {
+            progressRamp.stop(100);
+          }
         }
 
         renderOutput(payload);
@@ -1154,6 +1529,53 @@
     themeToggleEl.addEventListener("click", toggleTheme);
     soundToggleEl.addEventListener("click", () => setSoundEnabled(soundToggleEl.classList.contains("muted")));
     transcribeModeEl.addEventListener("change", updateOctaveButtonState);
+    wavBrowseBtnEl.addEventListener("click", () => {
+      wavFileInputEl.click();
+    });
+    wavClearBtnEl.addEventListener("click", () => {
+      clearSelectedWavFile();
+      setStatus("WAV selection cleared. Paste a path or choose another file.");
+    });
+    wavFileInputEl.addEventListener("change", () => {
+      const files = wavFileInputEl.files;
+      if (!files || files.length === 0) {
+        return;
+      }
+      setSelectedWavFile(files[0]);
+    });
+    wavDropZoneEl.addEventListener("click", () => {
+      wavFileInputEl.click();
+    });
+    wavDropZoneEl.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      wavFileInputEl.click();
+    });
+    for (const eventName of ["dragenter", "dragover"]) {
+      wavDropZoneEl.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        wavDropZoneEl.classList.add("drag-over");
+      });
+    }
+    for (const eventName of ["dragleave", "drop"]) {
+      wavDropZoneEl.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        wavDropZoneEl.classList.remove("drag-over");
+      });
+    }
+    wavDropZoneEl.addEventListener("drop", (event) => {
+      const transfer = event.dataTransfer;
+      const files = transfer ? transfer.files : null;
+      if (!files || files.length === 0) {
+        setStatus("Drop a WAV file to transcribe.");
+        return;
+      }
+      setSelectedWavFile(files[0]);
+    });
     octaveDownBtnEl.addEventListener("click", () => shiftInputOctave(-1));
     octaveUpBtnEl.addEventListener("click", () => shiftInputOctave(1));
     saveTabsBtnEl.addEventListener("click", () => {
@@ -1181,6 +1603,7 @@
     setSoundEnabled(initialSound !== null ? initialSound : true);
     renderSelectedCount();
     setTranscribeTelemetry(0);
+    clearSelectedWavFile();
     updateOctaveButtonState();
     saveTabsBtnEl.disabled = true;
   </script>
