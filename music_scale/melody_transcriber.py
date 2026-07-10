@@ -10,11 +10,13 @@ import math
 import re
 import struct
 import wave
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
+from .models import NoteEvent, ProjectState, TabPosition, stable_id
 from .notes import CHROMATIC_NOTES, note_index, normalize_note
+from .playback import TimelineBuilder
 
 # Standard tuning in MIDI note numbers.
 _STANDARD_TUNING_MIDI: dict[int, int] = {
@@ -32,43 +34,16 @@ _COMPACT_NOTE_CHARS_RE = re.compile(r"^[A-Ga-g#b+\-0-9]+$")
 _TAB_TOKEN_RE = re.compile(r"^\s*([1-6])\s*:\s*(\d+)\s*$")
 
 
-@dataclass(frozen=True, slots=True)
-class MelodyEvent:
-    """A detected or provided melody note event."""
-
-    note: str
-    octave: int
-    midi: int
-    frequency_hz: float
-    start_s: float
-    end_s: float
-
-    @property
-    def note_name(self) -> str:
-        return f"{self.note}{self.octave}"
-
-
-@dataclass(frozen=True, slots=True)
-class TabPosition:
-    """A single guitar tab position for one melody event."""
-
-    string_id: int
-    fret: int
-    midi: int
-    note: str
-    octave: int
-
-    @property
-    def tab_token(self) -> str:
-        return f"{self.string_id}:{self.fret}"
+MelodyEvent = NoteEvent
 
 
 @dataclass(frozen=True, slots=True)
 class MelodyTabResult:
     """Result bundle with note events and chosen tab positions."""
 
-    events: tuple[MelodyEvent, ...]
+    events: tuple[NoteEvent, ...]
     tabs: tuple[TabPosition, ...]
+    project_state: ProjectState = field(default_factory=ProjectState)
 
     @property
     def notes(self) -> tuple[str, ...]:
@@ -146,6 +121,48 @@ class MelodyTranscriber:
         self._playable_min_midi = min(_STANDARD_TUNING_MIDI.values()) + min_fret
         self._playable_max_midi = max(_STANDARD_TUNING_MIDI.values()) + max_fret
 
+    def _build_project_state(
+        self,
+        *,
+        events: Sequence[NoteEvent],
+        tabs: Sequence[TabPosition],
+    ) -> ProjectState:
+        selected_notes: list[str] = []
+        seen_notes: set[str] = set()
+        for event in events:
+            if event.note in seen_notes:
+                continue
+            seen_notes.add(event.note)
+            selected_notes.append(event.note)
+
+        tuning = []
+        for string_id, midi in sorted(_STANDARD_TUNING_MIDI.items()):
+            note, octave = midi_to_note(midi)
+            tuning.append((string_id, f"{note}{octave}"))
+
+        return ProjectState(
+            tuning=tuple(tuning),
+            selected_notes=tuple(selected_notes),
+            generated_events=tuple(events),
+            tab_positions=tuple(tabs),
+        )
+
+    def _build_result(
+        self,
+        *,
+        events: Sequence[NoteEvent],
+        tabs: Sequence[TabPosition],
+    ) -> MelodyTabResult:
+        event_tuple = tuple(events)
+        tab_tuple = tuple(tabs)
+        project_state = self._build_project_state(events=event_tuple, tabs=tab_tuple)
+        project_state = TimelineBuilder().build_project_state(project_state)
+        return MelodyTabResult(
+            events=event_tuple,
+            tabs=tab_tuple,
+            project_state=project_state,
+        )
+
     def transcribe_notes(
         self,
         note_tokens: Iterable[str],
@@ -159,11 +176,11 @@ class MelodyTranscriber:
         if note_duration_s <= 0:
             raise ValueError("note_duration_s must be positive.")
 
-        events: list[MelodyEvent] = []
+        events: list[NoteEvent] = []
         previous_midi: int | None = None
         current_time = 0.0
 
-        for raw in note_tokens:
+        for event_index, raw in enumerate(note_tokens, start=1):
             note, octave, enforce_octave = self._parse_note_token(raw)
             midi = self._resolve_midi(
                 note, octave, previous_midi, enforce_octave=enforce_octave
@@ -172,13 +189,15 @@ class MelodyTranscriber:
 
             note_name, detected_octave = midi_to_note(midi)
             events.append(
-                MelodyEvent(
+                NoteEvent(
+                    event_id=stable_id("event", event_index),
                     note=note_name,
                     octave=detected_octave,
                     midi=midi,
                     frequency_hz=midi_to_frequency(midi),
                     start_s=current_time,
                     end_s=current_time + note_duration_s,
+                    source="notes",
                 )
             )
             current_time += note_duration_s
@@ -189,7 +208,7 @@ class MelodyTranscriber:
             locked_string=locked_string,
             preferred_tabs=preferred_tabs,
         )
-        return MelodyTabResult(events=tuple(events), tabs=tabs)
+        return self._build_result(events=events, tabs=tabs)
 
     @staticmethod
     def filter_note_tokens(note_tokens: Iterable[str]) -> list[str]:
@@ -266,9 +285,13 @@ class MelodyTranscriber:
                 pitch_track.append(None)
 
         smoothed = self._median_smooth_pitch_track(pitch_track, window=5)
-        events = self._events_from_pitch_track(smoothed, frame_step_s=frame_step_s)
+        events = self._events_from_pitch_track(
+            smoothed,
+            frame_step_s=frame_step_s,
+            source="frequencies",
+        )
         tabs = self.map_events_to_tabs(events)
-        return MelodyTabResult(events=tuple(events), tabs=tabs)
+        return self._build_result(events=events, tabs=tabs)
 
     def transcribe_wav(
         self,
@@ -295,7 +318,7 @@ class MelodyTranscriber:
         )
         if not samples:
             _notify(100.0, "Completed")
-            return MelodyTabResult(events=(), tabs=())
+            return self._build_result(events=(), tabs=())
 
         frame_size = max(64, int(sample_rate * (frame_size_ms / 1000.0)))
         frame_hop = max(16, int(sample_rate * (frame_hop_ms / 1000.0)))
@@ -313,7 +336,9 @@ class MelodyTranscriber:
         smoothed = self._median_smooth_pitch_track(pitch_track, window=5)
         _notify(86.0, "Detecting Notes")
         events = self._events_from_pitch_track(
-            smoothed, frame_step_s=(frame_hop / sample_rate)
+            smoothed,
+            frame_step_s=(frame_hop / sample_rate),
+            source="wav",
         )
         _notify(92.0, "Mapping Tabs")
         tabs = self.map_events_to_tabs(
@@ -321,11 +346,11 @@ class MelodyTranscriber:
             progress_callback=lambda ratio: _notify(92.0 + (ratio * 8.0), "Mapping Tabs"),
         )
         _notify(100.0, "Completed")
-        return MelodyTabResult(events=tuple(events), tabs=tabs)
+        return self._build_result(events=events, tabs=tabs)
 
     def map_events_to_tabs(
         self,
-        events: Sequence[MelodyEvent],
+        events: Sequence[NoteEvent],
         *,
         tab_strategy: str = "balanced",
         locked_string: int | None = None,
@@ -368,7 +393,7 @@ class MelodyTranscriber:
         candidates_per_event: list[list[TabPosition]] = []
         total_events = max(1, len(events))
         for index, event in enumerate(events):
-            candidates = self._candidate_positions(event.midi)
+            candidates = self._candidate_positions(event.midi, event_id=event.event_id)
             if locked_string is not None:
                 candidates = [
                     position for position in candidates if position.string_id == locked_string
@@ -462,6 +487,14 @@ class MelodyTranscriber:
             current_idx = parents[event_idx][current_idx]
 
         chosen.reverse()
+        chosen = [
+            replace(
+                position,
+                position_id=stable_id("tab", index),
+                event_id=events[index - 1].event_id,
+            )
+            for index, position in enumerate(chosen, start=1)
+        ]
         _notify(1.0)
         return tuple(chosen)
 
@@ -548,7 +581,7 @@ class MelodyTranscriber:
         preferred = note_to_midi(note, 4)
         return min(candidates, key=lambda midi: (abs(midi - preferred), midi))
 
-    def _candidate_positions(self, midi: int) -> list[TabPosition]:
+    def _candidate_positions(self, midi: int, *, event_id: str = "") -> list[TabPosition]:
         note, octave = midi_to_note(midi)
         options: list[TabPosition] = []
         for string_id, open_midi in _STANDARD_TUNING_MIDI.items():
@@ -556,6 +589,8 @@ class MelodyTranscriber:
             if self.min_fret <= fret <= self.max_fret:
                 options.append(
                     TabPosition(
+                        position_id="",
+                        event_id=event_id,
                         string_id=string_id,
                         fret=fret,
                         midi=midi,
@@ -586,7 +621,7 @@ class MelodyTranscriber:
             return (0.9 * fret_move) + (0.45 * string_move) + (0.12 * current.fret)
         return fret_move + (0.55 * string_move) + (0.05 * current.fret)
 
-    def _pick_single_string(self, events: Sequence[MelodyEvent]) -> int:
+    def _pick_single_string(self, events: Sequence[NoteEvent]) -> int:
         best_string: int | None = None
         best_cost = math.inf
 
@@ -709,8 +744,12 @@ class MelodyTranscriber:
         return smoothed
 
     def _events_from_pitch_track(
-        self, pitch_track: Sequence[float | None], *, frame_step_s: float
-    ) -> list[MelodyEvent]:
+        self,
+        pitch_track: Sequence[float | None],
+        *,
+        frame_step_s: float,
+        source: str,
+    ) -> list[NoteEvent]:
         if not pitch_track:
             return []
 
@@ -726,7 +765,7 @@ class MelodyTranscriber:
             else:
                 midi_track.append(None)
 
-        events: list[MelodyEvent] = []
+        events: list[NoteEvent] = []
         i = 0
         while i < len(midi_track):
             midi = midi_track[i]
@@ -752,13 +791,15 @@ class MelodyTranscriber:
                 if frequencies
                 else midi_to_frequency(midi)
             )
-            event = MelodyEvent(
+            event = NoteEvent(
+                event_id=stable_id("event", len(events) + 1),
                 note=note,
                 octave=octave,
                 midi=midi,
                 frequency_hz=average_frequency,
                 start_s=start_i * frame_step_s,
                 end_s=i * frame_step_s,
+                source=source,
             )
             if (
                 events
@@ -767,13 +808,15 @@ class MelodyTranscriber:
             ):
                 previous = events[-1]
                 merged_frequency = (previous.frequency_hz + event.frequency_hz) / 2
-                events[-1] = MelodyEvent(
+                events[-1] = NoteEvent(
+                    event_id=previous.event_id,
                     note=previous.note,
                     octave=previous.octave,
                     midi=previous.midi,
                     frequency_hz=merged_frequency,
                     start_s=previous.start_s,
                     end_s=event.end_s,
+                    source=previous.source,
                 )
             else:
                 events.append(event)

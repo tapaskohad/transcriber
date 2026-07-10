@@ -22,8 +22,11 @@ from urllib.parse import parse_qs, urlsplit
 from .finder import ScaleFinder
 from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name, parse_tab_position
 from .melody_transcriber import MelodyTranscriber, format_ascii_tab
+from .models import PlaybackStatus
 from .notes import CHROMATIC_NOTES, normalize_many
+from .playback import TimelineBuilder
 from .scales import COMMON_SCALE_PATTERNS
+from .theory import TheoryEngine, dataclass_to_dict
 
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent
@@ -148,6 +151,8 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the browser UI and API."""
 
     finder = ScaleFinder()
+    theory = TheoryEngine()
+    timeline_builder = TimelineBuilder()
     config = _build_config()
     transcriber = MelodyTranscriber(max_fret=config["max_fret"])
     html = _build_html().encode("utf-8")
@@ -254,6 +259,22 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             self._handle_transcribe(body)
             return
 
+        if path == "/api/scale/analyze":
+            self._handle_scale_analyze(body)
+            return
+
+        if path == "/api/chords/detect":
+            self._handle_chords_detect(body)
+            return
+
+        if path == "/api/positions/suggest":
+            self._handle_positions_suggest(body)
+            return
+
+        if path == "/api/playback/prepare":
+            self._handle_playback_prepare(body)
+            return
+
         self._send_json({"error": "Not found."}, status=404)
 
     def _parse_content_length(self) -> int | None:
@@ -338,6 +359,203 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         }
         self._send_json(payload)
 
+    def _read_note_list(self, body: dict[str, Any]) -> list[str] | None:
+        raw_notes = body.get("notes", [])
+        if not isinstance(raw_notes, list):
+            self._send_json({"error": "Field 'notes' must be a list."}, status=400)
+            return None
+
+        try:
+            return list(normalize_many(str(item) for item in raw_notes))
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=400)
+            return None
+
+    def _handle_scale_analyze(self, body: dict[str, Any]) -> None:
+        notes = self._read_note_list(body)
+        if notes is None:
+            return
+
+        min_notes_raw = body.get("min_notes", 1)
+        include_partial_raw = body.get("include_partial", True)
+        try:
+            min_notes = int(min_notes_raw)
+        except (TypeError, ValueError):
+            self._send_json({"error": "Field 'min_notes' must be an integer."}, status=400)
+            return
+        if min_notes < 1:
+            self._send_json({"error": "Field 'min_notes' must be positive."}, status=400)
+            return
+
+        analyses = self.theory.analyze_scales(
+            notes,
+            min_notes=min_notes,
+            include_partial=bool(include_partial_raw),
+        )
+        self._send_json(
+            {
+                "selected_notes": notes,
+                "count": len(notes),
+                "analyses": [dataclass_to_dict(analysis) for analysis in analyses],
+            }
+        )
+
+    def _handle_chords_detect(self, body: dict[str, Any]) -> None:
+        notes = self._read_note_list(body)
+        if notes is None:
+            return
+
+        candidates = self.theory.detect_chords(notes)
+        self._send_json(
+            {
+                "selected_notes": notes,
+                "count": len(notes),
+                "candidates": [dataclass_to_dict(candidate) for candidate in candidates],
+            }
+        )
+
+    def _handle_positions_suggest(self, body: dict[str, Any]) -> None:
+        notes = self._read_note_list(body)
+        if notes is None:
+            return
+
+        try:
+            min_fret = int(body.get("min_fret", 0))
+            max_fret = int(body.get("max_fret", self.config["max_fret"]))
+            window_size = int(body.get("window_size", 5))
+            suggestions = self.theory.suggest_positions(
+                notes,
+                min_fret=min_fret,
+                max_fret=max_fret,
+                window_size=window_size,
+            )
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=400)
+            return
+
+        self._send_json(
+            {
+                "selected_notes": notes,
+                "count": len(notes),
+                "suggestions": [
+                    dataclass_to_dict(suggestion) for suggestion in suggestions
+                ],
+            }
+        )
+
+    def _handle_playback_prepare(self, body: dict[str, Any]) -> None:
+        try:
+            note_groups, derived_preferred_tabs = self._playback_note_groups(body)
+            if not note_groups:
+                raise ValueError("No note tokens found. Use formats like E4 F#4 G4.")
+
+            notes = [token for group in note_groups for token in group]
+            preferred_tabs = self._playback_preferred_tabs(
+                body,
+                note_count=len(notes),
+                fallback=derived_preferred_tabs,
+            )
+            result = self.transcriber.transcribe_notes(
+                notes,
+                preferred_tabs=preferred_tabs,
+            )
+            timeline = self.timeline_builder.build(
+                result.events,
+                tabs=result.tabs,
+                group_lengths=[len(group) for group in note_groups],
+                source="playback_prepare",
+            )
+        except (TypeError, ValueError) as exc:
+            self._send_json({"error": str(exc)}, status=400)
+            return
+
+        self._send_json(
+            {
+                "timeline": dataclass_to_dict(timeline),
+                "tempo": dataclass_to_dict(timeline.tempo),
+                "time_signature": dataclass_to_dict(timeline.time_signature),
+                "markers": [dataclass_to_dict(marker) for marker in timeline.markers],
+                "playback_status": dataclass_to_dict(PlaybackStatus()),
+                "synchronization_ids": [
+                    {
+                        "timeline_event_id": event.timeline_event_id,
+                        "note_event_id": event.note_event_id,
+                        "tab_position_id": event.tab_position_id,
+                        "group_id": event.group_id,
+                    }
+                    for event in timeline.events
+                ],
+            }
+        )
+
+    def _playback_note_groups(
+        self,
+        body: dict[str, Any],
+    ) -> tuple[list[list[str]], list[str | None]]:
+        raw_note_groups = body.get("note_groups", None)
+        note_groups: list[list[str]] = []
+        preferred_tabs: list[str | None] = []
+
+        def collect(raw_group: list[Any]) -> None:
+            group_tokens: list[str] = []
+            group_preferred: list[str | None] = []
+            for raw_token in raw_group:
+                token = str(raw_token).strip()
+                if not token:
+                    continue
+                try:
+                    string_id, fret = parse_tab_position(token)
+                except ValueError:
+                    extracted = self.transcriber.filter_note_tokens([token])
+                    for extracted_token in extracted:
+                        group_tokens.append(extracted_token)
+                        group_preferred.append(None)
+                else:
+                    group_tokens.append(fret_to_note_name(string_id, fret))
+                    group_preferred.append(f"{string_id}:{fret}")
+            if group_tokens:
+                note_groups.append(group_tokens)
+                preferred_tabs.extend(group_preferred)
+
+        if raw_note_groups is not None:
+            if not isinstance(raw_note_groups, list):
+                raise ValueError("Field 'note_groups' must be a list of note lists.")
+            for raw_group in raw_note_groups:
+                if not isinstance(raw_group, list):
+                    raise ValueError("Field 'note_groups' must be a list of note lists.")
+                collect(raw_group)
+            return note_groups, preferred_tabs
+
+        raw_notes = body.get("notes", [])
+        if not isinstance(raw_notes, list):
+            raise ValueError("Field 'notes' must be a list.")
+        collect(raw_notes)
+        return note_groups, preferred_tabs
+
+    @staticmethod
+    def _playback_preferred_tabs(
+        body: dict[str, Any],
+        *,
+        note_count: int,
+        fallback: list[str | None],
+    ) -> list[str | None] | None:
+        raw_preferred_tabs = body.get("preferred_tabs", None)
+        if raw_preferred_tabs is None:
+            return fallback if any(token is not None for token in fallback) else None
+        if not isinstance(raw_preferred_tabs, list):
+            raise ValueError("Field 'preferred_tabs' must be a list.")
+
+        preferred_tabs: list[str | None] = []
+        for raw_token in raw_preferred_tabs:
+            if raw_token is None:
+                preferred_tabs.append(None)
+                continue
+            token = str(raw_token).strip()
+            preferred_tabs.append(token or None)
+        if len(preferred_tabs) != note_count:
+            raise ValueError("Field 'preferred_tabs' must align with the selected notes.")
+        return preferred_tabs
+
     def _build_transcribe_payload(
         self,
         *,
@@ -346,6 +564,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         note_groups_payload: list[list[str]] | None = None,
         tab_groups_payload: list[list[str]] | None = None,
         ascii_tab_payload: str = "",
+        timeline_group_lengths: list[int] | None = None,
     ) -> dict[str, Any]:
         pitch_classes: list[str] = []
         seen: set[str] = set()
@@ -353,6 +572,14 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             if event.note not in seen:
                 seen.add(event.note)
                 pitch_classes.append(event.note)
+
+        timeline = self.timeline_builder.build(
+            result.events,
+            tabs=result.tabs,
+            group_lengths=timeline_group_lengths,
+            source=f"transcribe_{mode}",
+        )
+        timeline_events = list(timeline.events)
 
         return {
             "mode": mode,
@@ -364,12 +591,16 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             "pitch_classes": pitch_classes,
             "events": [
                 {
+                    "timeline_event_id": timeline_events[index].timeline_event_id
+                    if index < len(timeline_events)
+                    else "",
+                    "note_event_id": event.event_id,
                     "note": event.note_name,
                     "frequency_hz": event.frequency_hz,
                     "start_s": event.start_s,
                     "end_s": event.end_s,
                 }
-                for event in result.events
+                for index, event in enumerate(result.events)
             ],
             "tabs": [
                 {
@@ -378,6 +609,20 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                     "note": f"{tab.note}{tab.octave}",
                 }
                 for tab in result.tabs
+            ],
+            "timeline": dataclass_to_dict(timeline),
+            "tempo": dataclass_to_dict(timeline.tempo),
+            "time_signature": dataclass_to_dict(timeline.time_signature),
+            "markers": [dataclass_to_dict(marker) for marker in timeline.markers],
+            "playback_status": dataclass_to_dict(PlaybackStatus()),
+            "synchronization_ids": [
+                {
+                    "timeline_event_id": event.timeline_event_id,
+                    "note_event_id": event.note_event_id,
+                    "tab_position_id": event.tab_position_id,
+                    "group_id": event.group_id,
+                }
+                for event in timeline.events
             ],
         }
 
@@ -573,6 +818,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         note_groups_payload: list[list[str]] = []
         tab_groups_payload: list[list[str]] = []
         ascii_tab_payload = ""
+        timeline_group_lengths: list[int] | None = None
 
         try:
             locked_string: int | None = None
@@ -657,6 +903,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                     preferred_tabs=preferred_tabs,
                 )
                 group_lengths = [len(group) for group in note_groups]
+                timeline_group_lengths = group_lengths
                 line_group_lengths: list[int] = []
                 if raw_line_group_lengths is not None:
                     if not isinstance(raw_line_group_lengths, list):
@@ -739,6 +986,7 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             note_groups_payload=note_groups_payload,
             tab_groups_payload=tab_groups_payload,
             ascii_tab_payload=ascii_tab_payload,
+            timeline_group_lengths=timeline_group_lengths,
         )
         self._send_json(payload)
 

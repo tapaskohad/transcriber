@@ -304,72 +304,6 @@
         inset 0 -1px 0 rgba(0, 0, 0, 0.2);
     }
 
-    .transport-bar {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      flex-wrap: wrap;
-      max-width: min(720px, 100%);
-      padding: 4px;
-      border-radius: 14px;
-      border: 1px solid color-mix(in srgb, var(--line-strong) 58%, transparent 42%);
-      background: linear-gradient(180deg, var(--switch-bg-top), var(--switch-bg-bottom));
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.24),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.18);
-    }
-
-    .transport-bar .btn {
-      min-height: 34px;
-      padding: 0 10px;
-      font-size: 0.78rem;
-    }
-
-    .transport-speed {
-      width: auto;
-      min-height: 34px;
-      padding: 6px 28px 6px 9px;
-      font-size: 0.78rem;
-    }
-
-    .playback-seek {
-      width: clamp(130px, 15vw, 240px);
-      accent-color: var(--accent-strong);
-      cursor: pointer;
-    }
-
-    .playback-volume {
-      width: clamp(70px, 8vw, 110px);
-      accent-color: var(--accent-strong);
-      cursor: pointer;
-    }
-
-    .transport-readout {
-      min-width: 148px;
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--ink-soft);
-      white-space: nowrap;
-    }
-
-    /* Reuses the existing .status / .status.warn color language (defined
-       further below) for size only, so normal vs. warning states look
-       identical to every other status line in the app. */
-    .transport-source-label {
-      font-size: 0.78rem;
-      white-space: nowrap;
-    }
-
-    .transport-bar .btn:disabled,
-    .transport-speed:disabled,
-    .playback-seek:disabled,
-    .playback-volume:disabled {
-      cursor: not-allowed;
-      opacity: 0.58;
-      transform: none;
-    }
-
     .mode-btn,
     .btn,
     .theme-btn,
@@ -403,7 +337,6 @@
     .fret-cell-btn:focus-visible,
     .theme-btn:focus-visible,
     .select:focus-visible,
-    .playback-seek:focus-visible,
     .text-input:focus-visible,
     .text-area:focus-visible {
       outline: 2px solid var(--focus-ring);
@@ -527,16 +460,6 @@
         0 10px 18px rgba(0, 0, 0, 0.36),
         inset 0 1px 0 rgba(255, 255, 255, 0.45),
         inset 0 0 0 1px rgba(99, 72, 34, 0.25);
-    }
-
-    .cell-btn.playback-active,
-    .fret-cell-btn.playback-active,
-    .playback-token.playback-active,
-    .event-row.playback-active {
-      box-shadow:
-        0 0 0 2px color-mix(in srgb, var(--focus-ring) 82%, transparent 18%),
-        0 0 18px color-mix(in srgb, var(--accent) 62%, transparent 38%),
-        inset 0 1px 0 rgba(255, 255, 255, 0.34);
     }
 
     .theme-btn {
@@ -811,60 +734,6 @@
         linear-gradient(180deg, var(--fret-head-top), var(--fret-head-bottom));
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.38);
       font-weight: 700;
-      position: relative;
-    }
-
-    .fret-num-label {
-      display: block;
-    }
-
-    .fret-marker-dots {
-      position: absolute;
-      top: 4px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 3px;
-      pointer-events: none;
-    }
-
-    .fret-marker-dots i {
-      display: block;
-      width: 4px;
-      height: 4px;
-      border-radius: 999px;
-      font-style: normal;
-      background: color-mix(in srgb, var(--accent-strong) 72%, var(--silicon-label) 28%);
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.18),
-        inset 0 0 0 1px rgba(0, 0, 0, 0.18);
-      opacity: 0.78;
-    }
-
-    table.fret-grid thead th.fret-marker-col {
-      background:
-        linear-gradient(180deg, var(--fret-head-top), var(--fret-head-bottom)),
-        linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent 90%), transparent);
-    }
-
-    .fret-cell-btn.fret-marker-cell {
-      background:
-        linear-gradient(180deg, var(--silicon-cell-top), var(--silicon-cell-bottom)),
-        repeating-linear-gradient(
-          18deg,
-          rgba(255, 255, 255, 0.05) 0 2px,
-          rgba(0, 0, 0, 0.1) 2px 8px
-        ),
-        linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent 91%), color-mix(in srgb, var(--accent) 5%, transparent 95%));
-    }
-
-    .fret-cell-btn.fret-marker-cell.active {
-      background:
-        linear-gradient(
-          180deg,
-          color-mix(in srgb, var(--accent) 78%, #fff3d6 22%),
-          color-mix(in srgb, var(--accent-strong) 74%, #7e5b2f 26%)
-        );
     }
 
     table.fret-grid th:first-child,
@@ -955,20 +824,6 @@
         inset 0 0 0 1px rgba(117, 84, 40, 0.4);
     }
 
-    /* A fret that is both selected (.active) and currently sounding
-       (.playback-active) must show both signals. Without this rule the
-       later-declared .active box-shadow silently wins and the playback
-       glow disappears on already-selected notes. Higher selector
-       specificity (3 classes) guarantees this wins regardless of source
-       order, so it stays correct even if the rules above are reordered. */
-    .fret-cell-btn.active.playback-active {
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.4),
-        inset 0 0 0 1px rgba(117, 84, 40, 0.4),
-        0 0 0 2px color-mix(in srgb, var(--focus-ring) 82%, transparent 18%),
-        0 0 18px color-mix(in srgb, var(--accent) 62%, transparent 38%);
-    }
-
     .fret-cell-btn.active::after {
       content: "";
       position: absolute;
@@ -1002,25 +857,6 @@
       }
     }
 
-    .fret-cell-btn.scale-explore {
-      box-shadow:
-        inset 0 0 0 2px color-mix(in srgb, var(--note-chip-bottom) 75%, transparent 25%),
-        inset 0 0 10px color-mix(in srgb, var(--note-chip-bottom) 30%, transparent 70%),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      transition:
-        box-shadow 0.15s ease,
-        color 0.15s ease,
-        background 0.15s ease,
-        transform 0.08s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .fret-cell-btn.scale-explore.active {
-      box-shadow:
-        inset 0 0 0 2px color-mix(in srgb, var(--note-chip-bottom) 75%, transparent 25%),
-        inset 0 1px 0 rgba(255, 255, 255, 0.4),
-        inset 0 0 0 4px rgba(117, 84, 40, 0.4);
-    }
-
     .list-box {
       margin: 0;
       padding: 0;
@@ -1041,76 +877,6 @@
 
     .list-box li:last-child {
       border-bottom: none;
-    }
-
-    .list-box li.scale-result {
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease, padding-left 0.15s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .list-box li.scale-result:hover {
-      background: color-mix(in srgb, var(--accent) 14%, transparent 86%);
-      color: var(--ink);
-    }
-
-    .list-box li.scale-result:active {
-      padding-left: 13px;
-      transition-duration: 0.08s;
-    }
-
-    .list-box li.scale-result.selected {
-      background: color-mix(in srgb, var(--accent) 30%, transparent 70%);
-      color: var(--active-ink);
-      font-weight: 600;
-      border-left: 3px solid color-mix(in srgb, var(--accent-strong) 80%, transparent 20%);
-      padding-left: 7px;
-    }
-
-    .interval-row {
-      display: grid;
-      gap: 6px;
-      padding: 9px 11px;
-      border: 1px solid color-mix(in srgb, var(--line-strong) 70%, var(--line) 30%);
-      border-radius: 11px;
-      background:
-        linear-gradient(168deg, var(--info-strip-top), var(--info-strip-bottom));
-      box-shadow: var(--info-strip-shadow);
-      animation: fadeInPanel 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .interval-row-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--ink-muted);
-    }
-
-    .interval-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .interval-chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 30px;
-      padding: 3px 7px;
-      border-radius: 8px;
-      border: 1px solid var(--note-chip-border);
-      background: linear-gradient(160deg, var(--note-chip-top), var(--note-chip-bottom));
-      color: var(--note-chip-ink);
-      font-family: var(--mono);
-      font-size: 0.72rem;
-      font-weight: 700;
-    }
-
-    .interval-chip .interval-chip-note {
-      margin-left: 4px;
-      opacity: 0.75;
-      font-weight: 600;
     }
 
     .field {
@@ -1208,20 +974,6 @@
       overflow: auto;
       scrollbar-width: thin;
       scrollbar-color: color-mix(in srgb, var(--accent) 60%, transparent) transparent;
-      position: relative;
-    }
-
-    .output-tab.playback-cursor-enabled::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: var(--playback-cursor-pct, 0%);
-      width: 2px;
-      background: color-mix(in srgb, var(--accent) 84%, #fff6d8 16%);
-      box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent 30%);
-      pointer-events: none;
-      opacity: 0.95;
     }
 
     .output-tab::-webkit-scrollbar {
@@ -1242,13 +994,6 @@
       max-height: min(34vh, 320px);
     }
 
-    .output-tab.is-empty {
-      color: var(--ink-muted);
-      font-style: italic;
-      white-space: normal;
-      transition: opacity 0.15s ease;
-    }
-
     .events-box {
       max-height: 300px;
     }
@@ -1259,67 +1004,10 @@
       font-family: var(--mono);
       font-size: 0.75rem;
       line-height: 1.4;
-      transition: box-shadow 0.15s ease;
-    }
-
-    .event-row.is-empty {
-      color: var(--ink-muted);
-      font-style: italic;
     }
 
     .event-row:last-child {
       border-bottom: none;
-    }
-
-    .playback-token {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 28px;
-      margin-right: 6px;
-      padding: 1px 5px;
-      border-radius: 7px;
-      border: 1px solid transparent;
-      transition: box-shadow 0.12s ease, background 0.12s ease, color 0.12s ease;
-    }
-
-    .playback-token.playback-active {
-      background: color-mix(in srgb, var(--accent) 28%, transparent 72%);
-      color: var(--active-ink);
-    }
-
-    .output-tab.playback-active-ascii,
-    .text-area.playback-active-sequence {
-      box-shadow:
-        0 0 0 2px color-mix(in srgb, var(--focus-ring) 48%, transparent 52%),
-        inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent 62%);
-    }
-
-    .stale-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-left: 9px;
-      padding: 2px 8px 2px 6px;
-      border-radius: 999px;
-      vertical-align: middle;
-      font-family: var(--sans);
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--warn);
-      background: color-mix(in srgb, var(--warn) 16%, transparent 84%);
-      border: 1px solid color-mix(in srgb, var(--warn) 38%, transparent 62%);
-      animation: fadeInPanel 0.18s ease;
-    }
-
-    .stale-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--warn);
-      box-shadow: 0 0 6px color-mix(in srgb, var(--warn) 60%, transparent 40%);
     }
 
     .split-2 {
@@ -1507,26 +1195,6 @@
         <button class="mode-btn" data-mode="sequencer" type="button">Tab Sequencer</button>
       </div>
       <div class="topbar-actions">
-        <div id="transportBar" class="transport-bar" aria-label="Playback controls">
-          <button id="playbackPlayBtn" class="btn" type="button" title="Play (Space)" disabled>Play</button>
-          <button id="playbackPauseBtn" class="btn" type="button" title="Pause (Space)" disabled>Pause</button>
-          <button id="playbackStopBtn" class="btn" type="button" title="Stop" disabled>Stop</button>
-          <button id="playbackRestartBtn" class="btn" type="button" title="Restart (Home)" disabled>Restart</button>
-          <button id="playbackLoopBtn" class="btn" type="button" title="Toggle Loop (L)" aria-pressed="false" disabled>Loop</button>
-          <button id="playbackMuteBtn" class="btn" type="button" title="Mute" aria-pressed="false" disabled>Mute</button>
-          <input id="playbackVolume" class="playback-volume" type="range" min="0" max="100" step="1" value="72" title="Volume" aria-label="Playback volume" disabled />
-          <select id="playbackSpeed" class="select transport-speed" title="Playback speed" aria-label="Playback speed" disabled>
-            <option value="0.5">0.5x</option>
-            <option value="0.75">0.75x</option>
-            <option value="1" selected>1x</option>
-            <option value="1.25">1.25x</option>
-            <option value="1.5">1.5x</option>
-            <option value="2">2x</option>
-          </select>
-          <input id="playbackSeek" class="playback-seek" type="range" min="0" max="0" step="0.001" value="0" title="Seek (← / → nudges 0.5s)" aria-label="Playback position" disabled />
-          <span id="playbackReadout" class="transport-readout">0.00s / 0.00s</span>
-        </div>
-        <span id="playbackSourceLabel" class="status transport-source-label" role="status" hidden></span>
         <button id="themeToggle" class="theme-btn" type="button">Dark</button>
       </div>
     </header>
@@ -1564,10 +1232,6 @@
         </div>
         <p id="scaleStatus" class="status">Loading...</p>
         <ul id="scaleResults" class="list-box"></ul>
-        <div id="scaleIntervalRow" class="interval-row" hidden>
-          <span id="scaleIntervalLabel" class="interval-row-label">Scale</span>
-          <div id="scaleIntervalChips" class="interval-chips"></div>
-        </div>
       </section>
     </section>
 
@@ -1615,7 +1279,7 @@
         </div>
         <p id="transStatus" class="status">Ready.</p>
         <p id="transSummary" class="selected-line">Notes: -</p>
-        <pre id="transAscii" class="output-tab is-empty">Awaiting transcription.</pre>
+        <pre id="transAscii" class="output-tab">-</pre>
       </section>
 
       <section class="panel">
@@ -1623,9 +1287,7 @@
           <h2 class="block-title">Detected Events</h2>
           <p class="block-subtitle">Time windows and pitch snapshots from the most recent transcription.</p>
         </div>
-        <div id="transEvents" class="events-box">
-          <div class="event-row is-empty">No events yet.</div>
-        </div>
+        <div id="transEvents" class="events-box"></div>
       </section>
     </section>
 
@@ -1688,19 +1350,13 @@
       <section class="panel panel-output">
         <div class="panel-head generated-tabs-head">
           <div>
-            <h2 class="block-title">
-              Generated Tabs
-              <span id="seqStaleIndicator" class="stale-indicator" hidden>
-                <span class="stale-dot" aria-hidden="true"></span>
-                <span id="seqStaleIndicatorText">Needs Update</span>
-              </span>
-            </h2>
+            <h2 class="block-title">Generated Tabs</h2>
             <p class="block-subtitle">Rendered output follows your strategy and optional string lock settings.</p>
           </div>
           <button id="seqSaveTxtBtn" class="btn" type="button" disabled>Save TXT</button>
         </div>
         <p id="seqTabTokens" class="selected-line">Tabs: -</p>
-        <pre id="seqAscii" class="output-tab is-empty">No tabs generated.</pre>
+        <pre id="seqAscii" class="output-tab">-</pre>
       </section>
     </section>
   </main>
@@ -1738,11 +1394,6 @@
       const TRANSCRIBE_PROGRESS_SCHEDULE = [
         1, 4, 11, 21, 30, 38, 45, 52, 58, 63, 68, 72, 76, 80, 83, 86, 89, 91, 93, 94, 95
       ];
-      const FRETBOARD_MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
-      const FRETBOARD_DOUBLE_MARKER_FRETS = new Set([12, 24]);
-      const INTERVAL_LABELS_BY_SEMITONE = [
-        "1", "b2", "2", "b3", "3", "4", "#4/b5", "5", "b6", "6", "b7", "7",
-      ];
 
       let config = null;
       let activeMode = "scale";
@@ -1755,26 +1406,11 @@
         sequencer: document.getElementById("mode-sequencer"),
       };
 
-      const transportEls = {
-        playBtn: document.getElementById("playbackPlayBtn"),
-        pauseBtn: document.getElementById("playbackPauseBtn"),
-        stopBtn: document.getElementById("playbackStopBtn"),
-        restartBtn: document.getElementById("playbackRestartBtn"),
-        loopBtn: document.getElementById("playbackLoopBtn"),
-        muteBtn: document.getElementById("playbackMuteBtn"),
-        volume: document.getElementById("playbackVolume"),
-        speed: document.getElementById("playbackSpeed"),
-        seek: document.getElementById("playbackSeek"),
-        readout: document.getElementById("playbackReadout"),
-        sourceLabel: document.getElementById("playbackSourceLabel"),
-      };
-
       const scaleState = {
         selectedNotes: new Set(),
         noteButtons: new Map(),
         fretButtonsByNote: new Map(),
         requestToken: 0,
-        exploredScaleNotes: null,
       };
 
       const scaleEls = {
@@ -1785,9 +1421,6 @@
         results: document.getElementById("scaleResults"),
         fretHead: document.getElementById("scaleFretHead"),
         fretBody: document.getElementById("scaleFretBody"),
-        intervalRow: document.getElementById("scaleIntervalRow"),
-        intervalLabel: document.getElementById("scaleIntervalLabel"),
-        intervalChips: document.getElementById("scaleIntervalChips"),
       };
 
       const transEls = {
@@ -1827,28 +1460,11 @@
         fretBody: document.getElementById("seqFretBody"),
         tabTokens: document.getElementById("seqTabTokens"),
         ascii: document.getElementById("seqAscii"),
-        staleIndicator: document.getElementById("seqStaleIndicator"),
-        staleIndicatorText: document.getElementById("seqStaleIndicatorText"),
         requestToken: 0,
       };
 
       let selectedWavFile = null;
       let lastSequencerExportText = "";
-      let sequencerPlaybackTokenRanges = [];
-      let playbackAudioWarning = "";
-
-      const projectState = {
-        timeline: null,
-        playbackSource: null,
-        playbackStatus: {
-          isPlaying: false,
-          currentTime: 0,
-          currentEvent: null,
-          currentEventId: null,
-          loopEnabled: false,
-          playbackSpeed: 1,
-        },
-      };
 
       function flashButtonSuccess(button, durationMs = 500) {
         if (!button) {
@@ -1874,504 +1490,6 @@
           el.classList.remove(className);
         }, durationMs);
       }
-
-      function setOutputTabContent(el, text, emptyText) {
-        if (!el) {
-          return;
-        }
-        const hasContent = typeof text === "string" && text.trim().length > 0;
-        el.textContent = hasContent ? text : emptyText;
-        el.classList.toggle("is-empty", !hasContent);
-      }
-
-      function clampNumber(value, min, max) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          return min;
-        }
-        return Math.max(min, Math.min(max, numeric));
-      }
-
-      function timelineEvents(timeline) {
-        return timeline && Array.isArray(timeline.events) ? timeline.events : [];
-      }
-
-      function timelineDuration(timeline) {
-        return Math.max(0, Number(timeline && timeline.duration_s ? timeline.duration_s : 0) || 0);
-      }
-
-      function eventEndTime(event) {
-        return Number(event.start_s || 0) + Math.max(0, Number(event.duration_s || 0));
-      }
-
-      function playbackEventId(event) {
-        return event && typeof event.timeline_event_id === "string" ? event.timeline_event_id : null;
-      }
-
-      function normalizePlaybackStatus(rawStatus, timeline) {
-        const raw = rawStatus && typeof rawStatus === "object" ? rawStatus : {};
-        const duration = timelineDuration(timeline);
-        const rawCurrentEvent = raw.currentEvent || raw.current_event || null;
-        const currentTime = clampNumber(
-          raw.currentTime !== undefined ? raw.currentTime : raw.current_time_s,
-          0,
-          duration
-        );
-        const playbackSpeed = clampNumber(
-          raw.playbackSpeed !== undefined ? raw.playbackSpeed : raw.playback_speed,
-          0.25,
-          4
-        ) || 1;
-        return {
-          isPlaying: Boolean(raw.isPlaying !== undefined ? raw.isPlaying : raw.is_playing),
-          currentTime,
-          currentEvent: rawCurrentEvent,
-          currentEventId: playbackEventId(rawCurrentEvent) || raw.currentEventId || raw.current_event_id || null,
-          loopEnabled: Boolean(raw.loopEnabled !== undefined ? raw.loopEnabled : raw.loop_enabled),
-          playbackSpeed,
-        };
-      }
-
-      function formatPlaybackTime(seconds) {
-        return (Math.max(0, Number(seconds) || 0)).toFixed(2) + "s";
-      }
-
-      function midiToFrequency(midi) {
-        return 440 * Math.pow(2, (Number(midi) - 69) / 12);
-      }
-
-      class SynthAudioEngine {
-        constructor() {
-          this.context = null;
-          this.masterGain = null;
-          this.voices = [];
-          this.volume = 0.72;
-          this.muted = false;
-        }
-
-        async ensureContext() {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (!AudioContextClass) {
-            throw new Error("Web Audio is not available in this browser.");
-          }
-          if (!this.context) {
-            this.context = new AudioContextClass();
-            this.masterGain = this.context.createGain();
-            this.masterGain.gain.setValueAtTime(this._effectiveVolume(), this.context.currentTime);
-            this.masterGain.connect(this.context.destination);
-          }
-          if (this.context.state === "suspended") {
-            await this.context.resume();
-          }
-          return this.context;
-        }
-
-        _effectiveVolume() {
-          return this.muted ? 0 : this.volume;
-        }
-
-        _applyGain() {
-          if (!this.context || !this.masterGain) {
-            return;
-          }
-          const now = this.context.currentTime;
-          this.masterGain.gain.cancelScheduledValues(now);
-          this.masterGain.gain.setTargetAtTime(this._effectiveVolume(), now, 0.015);
-        }
-
-        setVolume(volume) {
-          const numeric = Number(volume);
-          this.volume = Number.isFinite(numeric) ? Math.max(0, Math.min(1, numeric)) : this.volume;
-          this._applyGain();
-        }
-
-        setMuted(muted) {
-          this.muted = Boolean(muted);
-          this._applyGain();
-        }
-
-        scheduleEvent(event, contextTime, playbackSpeed, offsetSeconds = 0) {
-          if (!this.context || !this.masterGain || !event) {
-            return;
-          }
-          const midi = Number(event.midi);
-          if (!Number.isFinite(midi)) {
-            return;
-          }
-          const safeSpeed = Math.max(0.25, Number(playbackSpeed) || 1);
-          const totalDuration = Math.max(0.04, Number(event.duration_s || 0.2));
-          const duration = Math.max(0.04, (totalDuration - Math.max(0, offsetSeconds)) / safeSpeed);
-          const startAt = Math.max(this.context.currentTime + 0.006, Number(contextTime) || this.context.currentTime);
-          const attack = Math.min(0.012, duration * 0.28);
-          const release = Math.min(0.045, duration * 0.4);
-          const endAt = startAt + duration;
-
-          const oscillator = this.context.createOscillator();
-          const gain = this.context.createGain();
-          oscillator.type = "triangle";
-          oscillator.frequency.setValueAtTime(midiToFrequency(midi), startAt);
-          gain.gain.setValueAtTime(0.0001, startAt);
-          gain.gain.exponentialRampToValueAtTime(0.16, startAt + attack);
-          gain.gain.setValueAtTime(0.13, Math.max(startAt + attack, endAt - release));
-          gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
-          oscillator.connect(gain);
-          gain.connect(this.masterGain);
-          oscillator.start(startAt);
-          oscillator.stop(endAt + 0.02);
-
-          const voice = {
-            oscillator,
-            gain,
-            eventId: playbackEventId(event),
-            stopAt: endAt + 0.03,
-          };
-          oscillator.onended = () => {
-            this.voices = this.voices.filter((item) => item !== voice);
-          };
-          this.voices.push(voice);
-          this.cleanup();
-        }
-
-        cleanup() {
-          if (!this.context) {
-            return;
-          }
-          const now = this.context.currentTime;
-          this.voices = this.voices.filter((voice) => voice.stopAt > now);
-        }
-
-        cancelScheduled() {
-          if (!this.context) {
-            this.voices = [];
-            return;
-          }
-          const now = this.context.currentTime;
-          for (const voice of this.voices) {
-            try {
-              voice.gain.gain.cancelScheduledValues(now);
-              voice.gain.gain.setTargetAtTime(0.0001, now, 0.008);
-              voice.oscillator.stop(now + 0.03);
-            } catch (_error) {
-              // The voice may have already ended.
-            }
-          }
-          this.voices = [];
-        }
-      }
-
-      class PlaybackController extends EventTarget {
-        constructor(state, audioEngine) {
-          super();
-          this.projectState = state;
-          this.audioEngine = audioEngine;
-          this.rafId = 0;
-          this.clockStartedAtMs = 0;
-          this.clockStartedAtTimelineS = 0;
-          this.audioStartedAtContextS = 0;
-          this.audioStartedAtTimelineS = 0;
-          this.scheduledEventIds = new Set();
-        }
-
-        get timeline() {
-          return this.projectState.timeline;
-        }
-
-        get status() {
-          return this.projectState.playbackStatus;
-        }
-
-        loadTimeline(timeline, rawStatus = {}) {
-          this._cancelFrame();
-          this.audioEngine.cancelScheduled();
-          this.scheduledEventIds.clear();
-          this.projectState.timeline = timeline && timelineEvents(timeline).length > 0 ? timeline : null;
-          const normalized = normalizePlaybackStatus(rawStatus, this.projectState.timeline);
-          normalized.isPlaying = false;
-          this.projectState.playbackStatus = {
-            ...this.projectState.playbackStatus,
-            isPlaying: false,
-            currentEvent: null,
-            currentEventId: null,
-          };
-          this._commitStatus(normalized);
-          this.dispatchEvent(new CustomEvent("timelinechange", { detail: { timeline: this.timeline } }));
-        }
-
-        async play() {
-          if (!this.timeline || timelineEvents(this.timeline).length === 0) {
-            return;
-          }
-          if (this.status.isPlaying) {
-            return;
-          }
-          const duration = timelineDuration(this.timeline);
-          if (duration <= 0) {
-            return;
-          }
-          let startTime = this.status.currentTime;
-          if (startTime >= duration) {
-            startTime = 0;
-          }
-          try {
-            await this.audioEngine.ensureContext();
-            this.dispatchEvent(new CustomEvent("audiowarning", { detail: { message: "" } }));
-          } catch (error) {
-            console.warn(error instanceof Error ? error.message : "Audio initialization failed.");
-            this.dispatchEvent(new CustomEvent("audiowarning", {
-              detail: { message: "Audio unavailable in this browser — playback will be silent." },
-            }));
-          }
-          this.clockStartedAtMs = performance.now();
-          this.clockStartedAtTimelineS = startTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
-          } else {
-            this.audioStartedAtContextS = 0;
-          }
-          this.audioStartedAtTimelineS = startTime;
-          this.scheduledEventIds.clear();
-          this._commitStatus({
-            isPlaying: true,
-            currentTime: startTime,
-          });
-          this._scheduleAudioWindow();
-          this._requestFrame();
-        }
-
-        pause() {
-          if (!this.status.isPlaying) {
-            return;
-          }
-          const currentTime = this._clockTime();
-          this._cancelFrame();
-          this.audioEngine.cancelScheduled();
-          this.scheduledEventIds.clear();
-          this._commitStatus({
-            isPlaying: false,
-            currentTime,
-          });
-        }
-
-        stop() {
-          this._cancelFrame();
-          this.audioEngine.cancelScheduled();
-          this.scheduledEventIds.clear();
-          this._commitStatus({
-            isPlaying: false,
-            currentTime: 0,
-            currentEvent: null,
-            currentEventId: null,
-          });
-        }
-
-        restart() {
-          const wasPlaying = this.status.isPlaying;
-          this.seek(0);
-          if (wasPlaying) {
-            void this.play();
-          }
-        }
-
-        seek(seconds) {
-          const duration = timelineDuration(this.timeline);
-          const nextTime = clampNumber(seconds, 0, duration);
-          const wasPlaying = this.status.isPlaying;
-          this.audioEngine.cancelScheduled();
-          this.scheduledEventIds.clear();
-          this.clockStartedAtMs = performance.now();
-          this.clockStartedAtTimelineS = nextTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
-          }
-          this.audioStartedAtTimelineS = nextTime;
-          this._commitStatus({
-            isPlaying: wasPlaying,
-            currentTime: nextTime,
-          });
-          if (wasPlaying) {
-            this._scheduleAudioWindow();
-            this._requestFrame();
-          }
-        }
-
-        setLoop(enabled) {
-          this._commitStatus({ loopEnabled: Boolean(enabled) });
-        }
-
-        setSpeed(speed) {
-          const nextSpeed = clampNumber(speed, 0.25, 4) || 1;
-          const currentTime = this.status.isPlaying ? this._clockTime() : this.status.currentTime;
-          const wasPlaying = this.status.isPlaying;
-          this.audioEngine.cancelScheduled();
-          this.scheduledEventIds.clear();
-          this.clockStartedAtMs = performance.now();
-          this.clockStartedAtTimelineS = currentTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
-          }
-          this.audioStartedAtTimelineS = currentTime;
-          this._commitStatus({
-            isPlaying: wasPlaying,
-            currentTime,
-            playbackSpeed: nextSpeed,
-          });
-          if (wasPlaying) {
-            this._scheduleAudioWindow();
-            this._requestFrame();
-          }
-        }
-
-        togglePlayPause() {
-          if (this.status.isPlaying) {
-            this.pause();
-          } else {
-            void this.play();
-          }
-        }
-
-        seekRelative(deltaSeconds) {
-          this.seek((this.status.currentTime || 0) + deltaSeconds);
-        }
-
-        _requestFrame() {
-          if (this.rafId) {
-            return;
-          }
-          this.rafId = window.requestAnimationFrame(() => this._tick());
-        }
-
-        _cancelFrame() {
-          if (!this.rafId) {
-            return;
-          }
-          window.cancelAnimationFrame(this.rafId);
-          this.rafId = 0;
-        }
-
-        _tick() {
-          this.rafId = 0;
-          if (!this.status.isPlaying) {
-            return;
-          }
-
-          const duration = timelineDuration(this.timeline);
-          let currentTime = this._clockTime();
-          if (duration > 0 && currentTime >= duration) {
-            if (this.status.loopEnabled) {
-              currentTime = currentTime % duration;
-              this.audioEngine.cancelScheduled();
-              this.scheduledEventIds.clear();
-              this.clockStartedAtMs = performance.now();
-              this.clockStartedAtTimelineS = currentTime;
-              if (this.audioEngine.context) {
-                this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
-              }
-              this.audioStartedAtTimelineS = currentTime;
-            } else {
-              this._cancelFrame();
-              this.audioEngine.cancelScheduled();
-              this.scheduledEventIds.clear();
-              this._commitStatus({
-                isPlaying: false,
-                currentTime: duration,
-                currentEvent: null,
-                currentEventId: null,
-              });
-              return;
-            }
-          }
-
-          this._commitStatus({ currentTime });
-          this._scheduleAudioWindow();
-          this._requestFrame();
-        }
-
-        _clockTime() {
-          const elapsed = (performance.now() - this.clockStartedAtMs) / 1000;
-          const speed = Math.max(0.25, Number(this.status.playbackSpeed) || 1);
-          return this.clockStartedAtTimelineS + elapsed * speed;
-        }
-
-        _eventAtTime(seconds) {
-          const events = timelineEvents(this.timeline);
-          if (events.length === 0) {
-            return null;
-          }
-          let low = 0;
-          let high = events.length - 1;
-          while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            const event = events[mid];
-            const start = Number(event.start_s || 0);
-            const end = eventEndTime(event);
-            if (seconds < start) {
-              high = mid - 1;
-            } else if (seconds >= end) {
-              low = mid + 1;
-            } else {
-              return event;
-            }
-          }
-          return null;
-        }
-
-        _commitStatus(patch) {
-          const previousStatus = this.projectState.playbackStatus;
-          const previousEvent = previousStatus.currentEvent || null;
-          const nextStatus = {
-            ...previousStatus,
-            ...patch,
-          };
-          const forcedEvent = Object.prototype.hasOwnProperty.call(patch, "currentEvent");
-          const nextEvent = forcedEvent ? patch.currentEvent : this._eventAtTime(nextStatus.currentTime || 0);
-          nextStatus.currentEvent = nextEvent || null;
-          nextStatus.currentEventId = playbackEventId(nextEvent);
-          this.projectState.playbackStatus = nextStatus;
-          this.dispatchEvent(new CustomEvent("statechange", { detail: { status: nextStatus } }));
-
-          const previousId = playbackEventId(previousEvent);
-          const nextId = playbackEventId(nextEvent);
-          if (previousId !== nextId) {
-            this.dispatchEvent(new CustomEvent("activeeventchange", {
-              detail: {
-                previousEvent,
-                currentEvent: nextEvent || null,
-              },
-            }));
-          }
-        }
-
-        _scheduleAudioWindow() {
-          const context = this.audioEngine.context;
-          if (!context || !this.timeline || !this.status.isPlaying) {
-            return;
-          }
-          const now = context.currentTime;
-          const horizon = 0.32;
-          const speed = Math.max(0.25, Number(this.status.playbackSpeed) || 1);
-          const currentTime = this.status.currentTime || 0;
-          for (const event of timelineEvents(this.timeline)) {
-            const id = playbackEventId(event);
-            if (!id || this.scheduledEventIds.has(id)) {
-              continue;
-            }
-            if (eventEndTime(event) <= currentTime) {
-              continue;
-            }
-            const offset = Math.max(0, currentTime - Number(event.start_s || 0));
-            const contextTime = offset > 0
-              ? now + 0.012
-              : this.audioStartedAtContextS + ((Number(event.start_s || 0) - this.audioStartedAtTimelineS) / speed);
-            if (contextTime < now - 0.02 || contextTime > now + horizon) {
-              continue;
-            }
-            this.audioEngine.scheduleEvent(event, contextTime, speed, offset);
-            this.scheduledEventIds.add(id);
-          }
-        }
-      }
-
-      const playbackController = new PlaybackController(projectState, new SynthAudioEngine());
 
       function readText(key, fallback = "") {
         try {
@@ -2437,265 +1555,6 @@
         }
       }
 
-      function escapeDataValue(value) {
-        const raw = String(value || "");
-        if (window.CSS && typeof window.CSS.escape === "function") {
-          return window.CSS.escape(raw);
-        }
-        return raw.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
-      }
-
-      function timelineEventIndex(event) {
-        const id = playbackEventId(event);
-        if (!id) {
-          return -1;
-        }
-        return timelineEvents(projectState.timeline).findIndex((item) => playbackEventId(item) === id);
-      }
-
-      function refreshSequencerPlaybackTokenRanges() {
-        const ranges = [];
-        const tokenPattern = /[A-Ga-g][#b]?-?\d+(?:@[1-6]:\d+)?/g;
-        const text = seqEls.editor.value || "";
-        let match = tokenPattern.exec(text);
-        while (match) {
-          ranges.push({ start: match.index, end: match.index + match[0].length });
-          match = tokenPattern.exec(text);
-        }
-        sequencerPlaybackTokenRanges = ranges;
-      }
-
-      function clearSequencerPlaybackSelection() {
-        seqEls.editor.classList.remove("playback-active-sequence");
-        if (document.activeElement !== seqEls.editor) {
-          seqEls.editor.setSelectionRange(0, 0);
-        }
-      }
-
-      function setSequencerPlaybackSelection(event) {
-        if (!event || projectState.playbackSource !== "sequencer") {
-          clearSequencerPlaybackSelection();
-          return;
-        }
-        if (document.activeElement === seqEls.editor) {
-          seqEls.editor.classList.remove("playback-active-sequence");
-          return;
-        }
-        const index = timelineEventIndex(event);
-        const range = index >= 0 ? sequencerPlaybackTokenRanges[index] : null;
-        if (!range) {
-          clearSequencerPlaybackSelection();
-          return;
-        }
-        seqEls.editor.setSelectionRange(range.start, range.end);
-        seqEls.editor.classList.add("playback-active-sequence");
-      }
-
-      function outputTabsForPlaybackSource() {
-        if (projectState.playbackSource === "transcriber") {
-          return [transEls.ascii];
-        }
-        if (projectState.playbackSource === "sequencer") {
-          return [seqEls.ascii];
-        }
-        return [];
-      }
-
-      function syncPlaybackCursor(status) {
-        const duration = timelineDuration(projectState.timeline);
-        const currentTime = clampNumber(status.currentTime, 0, duration);
-        const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
-        for (const el of [transEls.ascii, seqEls.ascii]) {
-          el.classList.remove("playback-cursor-enabled");
-          el.style.removeProperty("--playback-cursor-pct");
-        }
-        for (const el of outputTabsForPlaybackSource()) {
-          if (!el.classList.contains("is-empty")) {
-            el.classList.add("playback-cursor-enabled");
-            el.style.setProperty("--playback-cursor-pct", pct.toFixed(3) + "%");
-          }
-        }
-      }
-
-      function setPlaybackAudioWarning(message) {
-        playbackAudioWarning = message || "";
-        updateNowPlayingLabel();
-      }
-
-      // Identifies which mode's timeline is currently loaded into the
-      // always-visible transport, and (with higher priority) surfaces an
-      // audio initialization warning using the app's existing .status /
-      // .status.warn language. Self-clears whenever there is no loaded
-      // timeline, so no other code path needs to remember to reset it.
-      function updateNowPlayingLabel() {
-        if (!transportEls.sourceLabel) {
-          return;
-        }
-        const hasTimeline = Boolean(projectState.timeline && timelineEvents(projectState.timeline).length > 0);
-        const source = projectState.playbackSource;
-
-        if (!hasTimeline || !source) {
-          playbackAudioWarning = "";
-          transportEls.sourceLabel.hidden = true;
-          transportEls.sourceLabel.textContent = "";
-          transportEls.sourceLabel.classList.remove("warn");
-          return;
-        }
-
-        if (playbackAudioWarning) {
-          transportEls.sourceLabel.hidden = false;
-          transportEls.sourceLabel.textContent = playbackAudioWarning;
-          transportEls.sourceLabel.classList.add("warn");
-          return;
-        }
-
-        const sourceName = source === "sequencer" ? "Sequencer" : "Transcriber";
-        transportEls.sourceLabel.hidden = false;
-        transportEls.sourceLabel.textContent = "Now Playing: " + sourceName;
-        transportEls.sourceLabel.classList.remove("warn");
-      }
-
-      // Mirrors SynthAudioEngine's volume/muted fields onto the transport's
-      // mute button and volume slider. The engine remains the source of
-      // truth; this only reads it, matching the read-only relationship the
-      // rest of the transport already has with PlaybackController.status.
-      function updateVolumeControls() {
-        const engine = playbackController.audioEngine;
-        if (!transportEls.muteBtn || !transportEls.volume || !engine) {
-          return;
-        }
-        transportEls.muteBtn.classList.toggle("active", Boolean(engine.muted));
-        transportEls.muteBtn.setAttribute("aria-pressed", engine.muted ? "true" : "false");
-        if (document.activeElement !== transportEls.volume) {
-          transportEls.volume.value = String(Math.round(engine.volume * 100));
-        }
-      }
-
-      function updateTransportControls(status = projectState.playbackStatus) {
-        const hasTimeline = Boolean(projectState.timeline && timelineEvents(projectState.timeline).length > 0);
-        const duration = timelineDuration(projectState.timeline);
-        transportEls.playBtn.disabled = !hasTimeline || Boolean(status.isPlaying);
-        transportEls.pauseBtn.disabled = !hasTimeline || !status.isPlaying;
-        transportEls.stopBtn.disabled = !hasTimeline;
-        transportEls.restartBtn.disabled = !hasTimeline;
-        transportEls.loopBtn.disabled = !hasTimeline;
-        transportEls.muteBtn.disabled = !hasTimeline;
-        transportEls.volume.disabled = !hasTimeline;
-        transportEls.speed.disabled = !hasTimeline;
-        transportEls.seek.disabled = !hasTimeline;
-        transportEls.playBtn.classList.toggle("active", Boolean(status.isPlaying));
-        transportEls.pauseBtn.classList.toggle("active", Boolean(status.isPlaying));
-        transportEls.playBtn.setAttribute("aria-pressed", status.isPlaying ? "true" : "false");
-        transportEls.pauseBtn.setAttribute("aria-pressed", status.isPlaying ? "true" : "false");
-        transportEls.loopBtn.classList.toggle("active", Boolean(status.loopEnabled));
-        transportEls.loopBtn.setAttribute("aria-pressed", status.loopEnabled ? "true" : "false");
-        if (String(transportEls.speed.value) !== String(status.playbackSpeed)) {
-          transportEls.speed.value = String(status.playbackSpeed || 1);
-        }
-        transportEls.seek.max = String(duration);
-        if (!transportEls.seek.dataset.dragging) {
-          transportEls.seek.value = String(clampNumber(status.currentTime, 0, duration));
-        }
-        transportEls.readout.textContent = formatPlaybackTime(status.currentTime) + " / " + formatPlaybackTime(duration);
-        syncPlaybackCursor(status);
-        updateNowPlayingLabel();
-        updateVolumeControls();
-      }
-
-      function clearPlaybackHighlights() {
-        for (const el of document.querySelectorAll(".playback-active")) {
-          el.classList.remove("playback-active");
-        }
-        transEls.ascii.classList.remove("playback-active-ascii", "playback-cursor-enabled");
-        seqEls.ascii.classList.remove("playback-active-ascii", "playback-cursor-enabled");
-        transEls.ascii.style.removeProperty("--playback-cursor-pct");
-        seqEls.ascii.style.removeProperty("--playback-cursor-pct");
-        clearSequencerPlaybackSelection();
-      }
-
-      function togglePlaybackHighlights(event, active) {
-        if (!event) {
-          return;
-        }
-        const id = playbackEventId(event);
-        if (id) {
-          const source = projectState.playbackSource || "";
-          const selector = '[data-playback-source="' + escapeDataValue(source) + '"][data-timeline-event-id="' + escapeDataValue(id) + '"]';
-          for (const el of document.querySelectorAll(selector)) {
-            el.classList.toggle("playback-active", active);
-          }
-        }
-
-        const pitchClass = typeof event.pitch_class === "string" ? event.pitch_class : "";
-        const chip = scaleState.noteButtons.get(pitchClass);
-        if (chip) {
-          chip.classList.toggle("playback-active", active);
-        }
-
-        const stringId = Number(event.string);
-        const fret = Number(event.fret);
-        if (Number.isFinite(stringId) && Number.isFinite(fret)) {
-          const selector = '.fret-cell-btn[data-string-id="' + String(stringId) + '"][data-fret="' + String(fret) + '"]';
-          for (const button of document.querySelectorAll(selector)) {
-            button.classList.toggle("playback-active", active);
-          }
-        }
-
-        for (const el of outputTabsForPlaybackSource()) {
-          el.classList.toggle("playback-active-ascii", active && Boolean(event));
-        }
-      }
-
-      function renderTabTokenLine(el, tabs, timeline, source) {
-        el.textContent = "";
-        el.appendChild(document.createTextNode("Tabs: "));
-        if (!Array.isArray(tabs) || tabs.length === 0) {
-          el.appendChild(document.createTextNode("-"));
-          return;
-        }
-        const events = timelineEvents(timeline);
-        tabs.forEach((token, index) => {
-          const span = document.createElement("span");
-          span.className = "playback-token";
-          span.textContent = String(token);
-          span.dataset.playbackSource = source;
-          if (events[index]) {
-            span.dataset.timelineEventId = playbackEventId(events[index]) || "";
-          }
-          el.appendChild(span);
-        });
-      }
-
-      function loadPlaybackPayload(payload, source) {
-        const timeline = payload && payload.timeline ? payload.timeline : null;
-        if (!timeline || timelineEvents(timeline).length === 0) {
-          projectState.timeline = null;
-          projectState.playbackSource = null;
-          playbackController.stop();
-          clearPlaybackHighlights();
-          updateTransportControls();
-          return;
-        }
-        clearPlaybackHighlights();
-        projectState.playbackSource = source;
-        playbackAudioWarning = "";
-        playbackController.loadTimeline(timeline, payload.playback_status || payload.playbackStatus || {});
-      }
-
-      playbackController.addEventListener("statechange", (event) => {
-        updateTransportControls(event.detail.status);
-      });
-
-      playbackController.addEventListener("activeeventchange", (event) => {
-        togglePlaybackHighlights(event.detail.previousEvent, false);
-        togglePlaybackHighlights(event.detail.currentEvent, true);
-        setSequencerPlaybackSelection(event.detail.currentEvent);
-      });
-
-      playbackController.addEventListener("audiowarning", (event) => {
-        setPlaybackAudioWarning(event.detail && event.detail.message ? event.detail.message : "");
-      });
-
       function noteOrder(note) {
         if (!config) {
           return 999;
@@ -2738,72 +1597,6 @@
         }
       }
 
-      function computeScaleIntervals(root, scaleNotes) {
-        if (!config || !Array.isArray(config.chromatic_notes)) {
-          return [];
-        }
-        const rootIndex = config.chromatic_notes.indexOf(root);
-        if (rootIndex === -1) {
-          return [];
-        }
-        const size = config.chromatic_notes.length;
-        return scaleNotes.map((note) => {
-          const noteIndex = config.chromatic_notes.indexOf(note);
-          if (noteIndex === -1) {
-            return { note: note, label: "?" };
-          }
-          const semitone = (noteIndex - rootIndex + size) % size;
-          return { note: note, label: INTERVAL_LABELS_BY_SEMITONE[semitone] || "?" };
-        });
-      }
-
-      function clearScaleExploration() {
-        scaleState.exploredScaleNotes = null;
-        for (const [, buttons] of scaleState.fretButtonsByNote.entries()) {
-          for (const button of buttons) {
-            button.classList.remove("scale-explore");
-          }
-        }
-        for (const li of scaleEls.results.querySelectorAll("li.scale-result.selected")) {
-          li.classList.remove("selected");
-        }
-        scaleEls.intervalRow.hidden = true;
-      }
-
-      function exploreScale(match, li) {
-        const alreadySelected = li.classList.contains("selected");
-        clearScaleExploration();
-        if (alreadySelected) {
-          return;
-        }
-
-        li.classList.add("selected");
-        const scaleNotes = Array.isArray(match.scale_notes) ? match.scale_notes : [];
-        scaleState.exploredScaleNotes = new Set(scaleNotes);
-
-        for (const note of scaleNotes) {
-          const buttons = scaleState.fretButtonsByNote.get(note) || [];
-          for (const button of buttons) {
-            button.classList.add("scale-explore");
-          }
-        }
-
-        const intervals = computeScaleIntervals(match.root, scaleNotes);
-        scaleEls.intervalLabel.textContent = String(match.label || "Scale") + " intervals";
-        scaleEls.intervalChips.innerHTML = "";
-        for (const interval of intervals) {
-          const chip = document.createElement("span");
-          chip.className = "interval-chip";
-          chip.textContent = interval.label;
-          const noteTag = document.createElement("span");
-          noteTag.className = "interval-chip-note";
-          noteTag.textContent = interval.note;
-          chip.appendChild(noteTag);
-          scaleEls.intervalChips.appendChild(chip);
-        }
-        scaleEls.intervalRow.hidden = false;
-      }
-
       async function refreshScaleMatches() {
         if (!config) {
           return;
@@ -2811,12 +1604,11 @@
 
         const ordered = orderedScaleNotes();
         scaleEls.results.innerHTML = "";
-        clearScaleExploration();
 
         if (ordered.length < config.min_notes) {
           const needed = config.min_notes - ordered.length;
           setScaleStatus(
-            "Select at least " + config.min_notes + " unique notes (" + needed + " more needed).",
+            "Waiting for at least " + config.min_notes + " unique notes (" + needed + " more needed).",
             "warn"
           );
           return;
@@ -2845,21 +1637,11 @@
             return;
           }
 
-          setScaleStatus(matches.length + " matching scales found. Click a scale to explore it.", "ok");
+          setScaleStatus(matches.length + " matching scales found.", "ok");
           for (const match of matches) {
             const item = document.createElement("li");
-            item.className = "scale-result";
-            item.tabIndex = 0;
-            item.setAttribute("role", "button");
             const notes = Array.isArray(match.scale_notes) ? match.scale_notes.join(", ") : "";
             item.textContent = String(match.label || "") + " -> " + notes;
-            item.addEventListener("click", () => exploreScale(match, item));
-            item.addEventListener("keydown", (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                exploreScale(match, item);
-              }
-            });
             scaleEls.results.appendChild(item);
           }
         } catch (_error) {
@@ -2920,51 +1702,6 @@
         }
       }
 
-      function renderNoteGridSkeleton(gridEl, count = 12) {
-        gridEl.innerHTML = "";
-        for (let i = 0; i < count; i += 1) {
-          const placeholder = document.createElement("div");
-          placeholder.className = "cell-btn skeleton-block";
-          placeholder.setAttribute("aria-hidden", "true");
-          gridEl.appendChild(placeholder);
-        }
-      }
-
-      function renderFretboardSkeleton(headEl, bodyEl, stringCount = 6, fretCount = 13) {
-        headEl.innerHTML = "";
-        bodyEl.innerHTML = "";
-
-        const headRow = document.createElement("tr");
-        const firstHead = document.createElement("th");
-        firstHead.className = "skeleton-block skeleton-head-label";
-        headRow.appendChild(firstHead);
-        for (let i = 0; i < fretCount; i += 1) {
-          const th = document.createElement("th");
-          const block = document.createElement("div");
-          block.className = "skeleton-block skeleton-head-cell";
-          th.appendChild(block);
-          headRow.appendChild(th);
-        }
-        headEl.appendChild(headRow);
-
-        for (let r = 0; r < stringCount; r += 1) {
-          const tr = document.createElement("tr");
-          const label = document.createElement("td");
-          const labelBlock = document.createElement("div");
-          labelBlock.className = "skeleton-block skeleton-row-label";
-          label.appendChild(labelBlock);
-          tr.appendChild(label);
-          for (let c = 0; c < fretCount; c += 1) {
-            const td = document.createElement("td");
-            const cellBlock = document.createElement("div");
-            cellBlock.className = "skeleton-block skeleton-cell";
-            td.appendChild(cellBlock);
-            tr.appendChild(td);
-          }
-          bodyEl.appendChild(tr);
-        }
-      }
-
       function renderFretboard(headEl, bodyEl, onPress) {
         headEl.innerHTML = "";
         bodyEl.innerHTML = "";
@@ -2975,22 +1712,7 @@
         headRow.appendChild(firstHead);
         for (let fret = 0; fret <= config.max_fret; fret += 1) {
           const th = document.createElement("th");
-          const isMarker = FRETBOARD_MARKER_FRETS.has(fret);
-          if (isMarker) {
-            th.classList.add("fret-marker-col");
-            const dotWrap = document.createElement("span");
-            dotWrap.className = "fret-marker-dots" + (FRETBOARD_DOUBLE_MARKER_FRETS.has(fret) ? " double" : "");
-            dotWrap.setAttribute("aria-hidden", "true");
-            dotWrap.appendChild(document.createElement("i"));
-            if (FRETBOARD_DOUBLE_MARKER_FRETS.has(fret)) {
-              dotWrap.appendChild(document.createElement("i"));
-            }
-            th.appendChild(dotWrap);
-          }
-          const fretLabel = document.createElement("span");
-          fretLabel.className = "fret-num-label";
-          fretLabel.textContent = String(fret);
-          th.appendChild(fretLabel);
+          th.textContent = String(fret);
           headRow.appendChild(th);
         }
         headEl.appendChild(headRow);
@@ -3005,10 +1727,8 @@
             const td = document.createElement("td");
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "fret-cell-btn" + (FRETBOARD_MARKER_FRETS.has(fretData.fret) ? " fret-marker-cell" : "");
+            button.className = "fret-cell-btn";
             button.textContent = fretData.note_name;
-            button.dataset.stringId = String(row.string);
-            button.dataset.fret = String(fretData.fret);
             button.dataset.noteName = fretData.note_name;
             button.dataset.pitchClass = fretData.note;
             button.title = row.string + " fret " + fretData.fret + " -> " + fretData.note_name;
@@ -3062,18 +1782,14 @@
         transEls.events.innerHTML = "";
         if (!Array.isArray(events) || events.length === 0) {
           const item = document.createElement("div");
-          item.className = "event-row is-empty";
-          item.textContent = "No events yet.";
+          item.className = "event-row";
+          item.textContent = "No events detected.";
           transEls.events.appendChild(item);
           return;
         }
         for (const event of events) {
           const row = document.createElement("div");
           row.className = "event-row";
-          row.dataset.playbackSource = "transcriber";
-          if (typeof event.timeline_event_id === "string") {
-            row.dataset.timelineEventId = event.timeline_event_id;
-          }
           const note = String(event.note || "-");
           const start = Number(event.start_s || 0).toFixed(2);
           const end = Number(event.end_s || 0).toFixed(2);
@@ -3596,13 +2312,8 @@
             "Notes: " + (notes.length > 0 ? notes.join(" ") : "-") +
             " | Tabs: " + (tabs.length > 0 ? tabs.join(" ") : "-") +
             " | Pitch Classes: " + (pitch.length > 0 ? pitch.join(", ") : "-");
-          setOutputTabContent(
-            transEls.ascii,
-            typeof payload.ascii_tab === "string" ? payload.ascii_tab : "",
-            "Awaiting transcription."
-          );
+          transEls.ascii.textContent = typeof payload.ascii_tab === "string" ? payload.ascii_tab : "-";
           renderTransEvents(payload.events);
-          loadPlaybackPayload(payload, "transcriber");
           setTransStatus("Transcribed " + notes.length + " notes.", "ok");
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection error.";
@@ -3820,36 +2531,6 @@
         seqEls.saveTxtBtn.disabled = !lastSequencerExportText.trim();
       }
 
-      function markSequencerStale() {
-        refreshSequencerPlaybackTokenRanges();
-        let playbackWasStopped = false;
-        if (projectState.playbackSource === "sequencer") {
-          playbackWasStopped = true;
-          playbackController.stop();
-          projectState.timeline = null;
-          projectState.playbackSource = null;
-          clearPlaybackHighlights();
-          updateTransportControls();
-        }
-        if (seqEls.staleIndicator) {
-          seqEls.staleIndicator.hidden = false;
-          if (seqEls.staleIndicatorText) {
-            seqEls.staleIndicatorText.textContent = playbackWasStopped
-              ? "Needs Update — Playback Stopped"
-              : "Needs Update";
-          }
-        }
-      }
-
-      function clearSequencerStale() {
-        if (seqEls.staleIndicator) {
-          seqEls.staleIndicator.hidden = true;
-        }
-        if (seqEls.staleIndicatorText) {
-          seqEls.staleIndicatorText.textContent = "Needs Update";
-        }
-      }
-
       function buildSequencerExportText(tabsText, asciiText) {
         const sequenceText = (seqEls.editor.value || "").trim() || "-";
         const renderedAscii = (asciiText || "").trim() || "-";
@@ -3925,7 +2606,6 @@
         }
 
         const groups = layout.groups;
-        refreshSequencerPlaybackTokenRanges();
         updateSequencerFretboardGlow(groups);
 
         writeText(KEYS.seqEditor, seqEls.editor.value);
@@ -3934,12 +2614,10 @@
 
         if (groups.length === 0) {
           updateSequencerFretboardGlow([]);
-          renderTabTokenLine(seqEls.tabTokens, [], null, "sequencer");
-          setOutputTabContent(seqEls.ascii, "", "No tabs generated.");
-          loadPlaybackPayload(null, "sequencer");
+          seqEls.tabTokens.textContent = "Tabs: -";
+          seqEls.ascii.textContent = "-";
           setSequencerExportText("");
           setSequencerStatus("No notes in sequence.", "warn");
-          clearSequencerStale();
           return;
         }
 
@@ -3981,16 +2659,10 @@
           }
 
           const tabs = Array.isArray(result.tab_tokens) ? result.tab_tokens : [];
-          renderTabTokenLine(seqEls.tabTokens, tabs, result.timeline, "sequencer");
-          setOutputTabContent(
-            seqEls.ascii,
-            typeof result.ascii_tab === "string" ? result.ascii_tab : "",
-            "No tabs generated."
-          );
-          loadPlaybackPayload(result, "sequencer");
+          seqEls.tabTokens.textContent = "Tabs: " + (tabs.length > 0 ? tabs.join(" ") : "-");
+          seqEls.ascii.textContent = typeof result.ascii_tab === "string" ? result.ascii_tab : "-";
           setSequencerExportText(buildSequencerExportText(seqEls.tabTokens.textContent, seqEls.ascii.textContent));
           setSequencerStatus("Generated " + tabs.length + " tab positions.", "ok");
-          clearSequencerStale();
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection error.";
           setSequencerStatus(message, "warn");
@@ -4036,54 +2708,6 @@
           setTheme(getTheme() === "dark" ? "light" : "dark");
         });
 
-        transportEls.playBtn.addEventListener("click", () => {
-          void playbackController.play();
-        });
-        transportEls.pauseBtn.addEventListener("click", () => {
-          playbackController.pause();
-        });
-        transportEls.stopBtn.addEventListener("click", () => {
-          playbackController.stop();
-        });
-        transportEls.restartBtn.addEventListener("click", () => {
-          playbackController.restart();
-        });
-        transportEls.loopBtn.addEventListener("click", () => {
-          playbackController.setLoop(!projectState.playbackStatus.loopEnabled);
-        });
-        transportEls.muteBtn.addEventListener("click", () => {
-          playbackController.audioEngine.setMuted(!playbackController.audioEngine.muted);
-          updateVolumeControls();
-        });
-        transportEls.volume.addEventListener("input", () => {
-          const nextVolume = Number(transportEls.volume.value || 0) / 100;
-          playbackController.audioEngine.setVolume(nextVolume);
-          if (nextVolume > 0 && playbackController.audioEngine.muted) {
-            playbackController.audioEngine.setMuted(false);
-          }
-          updateVolumeControls();
-        });
-        transportEls.speed.addEventListener("change", () => {
-          playbackController.setSpeed(Number(transportEls.speed.value || 1));
-        });
-        transportEls.seek.addEventListener("pointerdown", () => {
-          transportEls.seek.dataset.dragging = "true";
-        });
-        transportEls.seek.addEventListener("pointerup", () => {
-          delete transportEls.seek.dataset.dragging;
-          playbackController.seek(Number(transportEls.seek.value || 0));
-        });
-        transportEls.seek.addEventListener("change", () => {
-          delete transportEls.seek.dataset.dragging;
-          playbackController.seek(Number(transportEls.seek.value || 0));
-        });
-        transportEls.seek.addEventListener("input", () => {
-          const duration = timelineDuration(projectState.timeline);
-          const currentTime = clampNumber(Number(transportEls.seek.value || 0), 0, duration);
-          transportEls.readout.textContent = formatPlaybackTime(currentTime) + " / " + formatPlaybackTime(duration);
-          syncPlaybackCursor({ ...projectState.playbackStatus, currentTime });
-        });
-
         for (const button of modeButtons) {
           button.addEventListener("click", () => {
             const mode = button.dataset.mode || "scale";
@@ -4106,16 +2730,7 @@
           persistTranscriberInputs();
           syncTranscriberWavTools();
         });
-        transEls.input.addEventListener("input", () => {
-          persistTranscriberInputs();
-          if (projectState.playbackSource === "transcriber") {
-            playbackController.stop();
-            projectState.timeline = null;
-            projectState.playbackSource = null;
-            clearPlaybackHighlights();
-            updateTransportControls();
-          }
-        });
+        transEls.input.addEventListener("input", persistTranscriberInputs);
         transEls.wavBrowseBtn.addEventListener("click", () => {
           transEls.wavFileInput.click();
         });
@@ -4174,10 +2789,6 @@
         seqEls.editor.addEventListener("input", () => {
           writeText(KEYS.seqEditor, seqEls.editor.value || "");
           updateSequencerNextLineState();
-          markSequencerStale();
-        });
-        seqEls.editor.addEventListener("focus", () => {
-          seqEls.editor.classList.remove("playback-active-sequence");
         });
         seqEls.strategy.addEventListener("change", () => {
           writeText(KEYS.seqStrategy, seqEls.strategy.value || "as_selected");
@@ -4206,7 +2817,6 @@
             seqEls.editor.value = pasted;
             writeText(KEYS.seqEditor, pasted);
             updateSequencerNextLineState();
-            markSequencerStale();
             setSequencerStatus("Pasted. Click Update Tabs.", "ok");
             flashButtonSuccess(seqEls.pasteBtn);
           } catch (_error) {
@@ -4234,96 +2844,12 @@
         seqEls.saveTxtBtn.addEventListener("click", () => {
           saveSequencerTxt();
         });
-
-        window.addEventListener("keydown", (event) => {
-          const target = event.target;
-          const tagName = target && target.tagName ? target.tagName.toUpperCase() : "";
-          const isEditableField =
-            tagName === "TEXTAREA" ||
-            tagName === "SELECT" ||
-            (tagName === "INPUT") ||
-            (target && target.isContentEditable);
-          // A focused <button> (transport controls, mode switch, theme
-          // toggle, etc.) must keep its native Space/Enter activation.
-          // Without this exclusion, the global Space shortcut below calls
-          // preventDefault() and hijacks the keypress into
-          // togglePlayPause() instead of activating the focused button.
-          const isFocusedButton = tagName === "BUTTON";
-          const isModified = event.ctrlKey || event.metaKey;
-
-          if (event.key === "Escape") {
-            if (isEditableField && document.activeElement) {
-              document.activeElement.blur();
-            }
-            return;
-          }
-
-          if (!isEditableField && !isFocusedButton && !isModified) {
-            if (event.code === "Space" || event.key === " ") {
-              event.preventDefault();
-              playbackController.togglePlayPause();
-              return;
-            }
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              playbackController.seekRelative(-0.5);
-              return;
-            }
-            if (event.key === "ArrowRight") {
-              event.preventDefault();
-              playbackController.seekRelative(0.5);
-              return;
-            }
-            if (event.key === "Home") {
-              event.preventDefault();
-              playbackController.restart();
-              return;
-            }
-            if (event.key === "l" || event.key === "L") {
-              event.preventDefault();
-              playbackController.setLoop(!projectState.playbackStatus.loopEnabled);
-              return;
-            }
-          }
-
-          if (!isModified) {
-            return;
-          }
-
-          if (event.key === "1" || event.key === "2" || event.key === "3") {
-            event.preventDefault();
-            const modeByDigit = { "1": "scale", "2": "transcriber", "3": "sequencer" };
-            setMode(modeByDigit[event.key]);
-            return;
-          }
-
-          if (event.key === "Enter") {
-            if (activeMode === "transcriber") {
-              event.preventDefault();
-              void runTranscription();
-            } else if (activeMode === "sequencer") {
-              event.preventDefault();
-              void refreshSequencerTabs();
-            }
-            return;
-          }
-
-          if (event.key === "z" || event.key === "Z") {
-            if (activeMode === "sequencer" && target !== seqEls.editor) {
-              event.preventDefault();
-              sequencerUndo();
-              void refreshSequencerTabs();
-            }
-          }
-        });
       }
 
       async function init() {
         restorePersistedState();
         attachEvents();
         updateSequencerNextLineState();
-        refreshSequencerPlaybackTokenRanges();
-        updateTransportControls();
 
         const initialMode = PATH_TO_MODE[window.location.pathname] || readText(KEYS.activeMode, "scale");
         setMode(initialMode, true);
@@ -4349,8 +2875,8 @@
           if ((seqEls.editor.value || "").trim()) {
             void refreshSequencerTabs();
           } else {
-            renderTabTokenLine(seqEls.tabTokens, [], null, "sequencer");
-            setOutputTabContent(seqEls.ascii, "", "No tabs generated.");
+            seqEls.tabTokens.textContent = "Tabs: -";
+            seqEls.ascii.textContent = "-";
             setSequencerExportText("");
           }
         } catch (error) {

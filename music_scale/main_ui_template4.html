@@ -338,12 +338,6 @@
       cursor: pointer;
     }
 
-    .playback-volume {
-      width: clamp(70px, 8vw, 110px);
-      accent-color: var(--accent-strong);
-      cursor: pointer;
-    }
-
     .transport-readout {
       min-width: 148px;
       font-family: var(--mono);
@@ -353,18 +347,9 @@
       white-space: nowrap;
     }
 
-    /* Reuses the existing .status / .status.warn color language (defined
-       further below) for size only, so normal vs. warning states look
-       identical to every other status line in the app. */
-    .transport-source-label {
-      font-size: 0.78rem;
-      white-space: nowrap;
-    }
-
     .transport-bar .btn:disabled,
     .transport-speed:disabled,
-    .playback-seek:disabled,
-    .playback-volume:disabled {
+    .playback-seek:disabled {
       cursor: not-allowed;
       opacity: 0.58;
       transform: none;
@@ -955,20 +940,6 @@
         inset 0 0 0 1px rgba(117, 84, 40, 0.4);
     }
 
-    /* A fret that is both selected (.active) and currently sounding
-       (.playback-active) must show both signals. Without this rule the
-       later-declared .active box-shadow silently wins and the playback
-       glow disappears on already-selected notes. Higher selector
-       specificity (3 classes) guarantees this wins regardless of source
-       order, so it stays correct even if the rules above are reordered. */
-    .fret-cell-btn.active.playback-active {
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.4),
-        inset 0 0 0 1px rgba(117, 84, 40, 0.4),
-        0 0 0 2px color-mix(in srgb, var(--focus-ring) 82%, transparent 18%),
-        0 0 18px color-mix(in srgb, var(--accent) 62%, transparent 38%);
-    }
-
     .fret-cell-btn.active::after {
       content: "";
       position: absolute;
@@ -1259,7 +1230,6 @@
       font-family: var(--mono);
       font-size: 0.75rem;
       line-height: 1.4;
-      transition: box-shadow 0.15s ease;
     }
 
     .event-row.is-empty {
@@ -1508,14 +1478,12 @@
       </div>
       <div class="topbar-actions">
         <div id="transportBar" class="transport-bar" aria-label="Playback controls">
-          <button id="playbackPlayBtn" class="btn" type="button" title="Play (Space)" disabled>Play</button>
-          <button id="playbackPauseBtn" class="btn" type="button" title="Pause (Space)" disabled>Pause</button>
-          <button id="playbackStopBtn" class="btn" type="button" title="Stop" disabled>Stop</button>
-          <button id="playbackRestartBtn" class="btn" type="button" title="Restart (Home)" disabled>Restart</button>
-          <button id="playbackLoopBtn" class="btn" type="button" title="Toggle Loop (L)" aria-pressed="false" disabled>Loop</button>
-          <button id="playbackMuteBtn" class="btn" type="button" title="Mute" aria-pressed="false" disabled>Mute</button>
-          <input id="playbackVolume" class="playback-volume" type="range" min="0" max="100" step="1" value="72" title="Volume" aria-label="Playback volume" disabled />
-          <select id="playbackSpeed" class="select transport-speed" title="Playback speed" aria-label="Playback speed" disabled>
+          <button id="playbackPlayBtn" class="btn" type="button" disabled>Play</button>
+          <button id="playbackPauseBtn" class="btn" type="button" disabled>Pause</button>
+          <button id="playbackStopBtn" class="btn" type="button" disabled>Stop</button>
+          <button id="playbackRestartBtn" class="btn" type="button" disabled>Restart</button>
+          <button id="playbackLoopBtn" class="btn" type="button" aria-pressed="false" disabled>Loop</button>
+          <select id="playbackSpeed" class="select transport-speed" aria-label="Playback speed" disabled>
             <option value="0.5">0.5x</option>
             <option value="0.75">0.75x</option>
             <option value="1" selected>1x</option>
@@ -1523,10 +1491,9 @@
             <option value="1.5">1.5x</option>
             <option value="2">2x</option>
           </select>
-          <input id="playbackSeek" class="playback-seek" type="range" min="0" max="0" step="0.001" value="0" title="Seek (← / → nudges 0.5s)" aria-label="Playback position" disabled />
+          <input id="playbackSeek" class="playback-seek" type="range" min="0" max="0" step="0.001" value="0" aria-label="Playback position" disabled />
           <span id="playbackReadout" class="transport-readout">0.00s / 0.00s</span>
         </div>
-        <span id="playbackSourceLabel" class="status transport-source-label" role="status" hidden></span>
         <button id="themeToggle" class="theme-btn" type="button">Dark</button>
       </div>
     </header>
@@ -1692,7 +1659,7 @@
               Generated Tabs
               <span id="seqStaleIndicator" class="stale-indicator" hidden>
                 <span class="stale-dot" aria-hidden="true"></span>
-                <span id="seqStaleIndicatorText">Needs Update</span>
+                Needs Update
               </span>
             </h2>
             <p class="block-subtitle">Rendered output follows your strategy and optional string lock settings.</p>
@@ -1761,12 +1728,9 @@
         stopBtn: document.getElementById("playbackStopBtn"),
         restartBtn: document.getElementById("playbackRestartBtn"),
         loopBtn: document.getElementById("playbackLoopBtn"),
-        muteBtn: document.getElementById("playbackMuteBtn"),
-        volume: document.getElementById("playbackVolume"),
         speed: document.getElementById("playbackSpeed"),
         seek: document.getElementById("playbackSeek"),
         readout: document.getElementById("playbackReadout"),
-        sourceLabel: document.getElementById("playbackSourceLabel"),
       };
 
       const scaleState = {
@@ -1828,14 +1792,12 @@
         tabTokens: document.getElementById("seqTabTokens"),
         ascii: document.getElementById("seqAscii"),
         staleIndicator: document.getElementById("seqStaleIndicator"),
-        staleIndicatorText: document.getElementById("seqStaleIndicatorText"),
         requestToken: 0,
       };
 
       let selectedWavFile = null;
       let lastSequencerExportText = "";
       let sequencerPlaybackTokenRanges = [];
-      let playbackAudioWarning = "";
 
       const projectState = {
         timeline: null,
@@ -1945,8 +1907,6 @@
           this.context = null;
           this.masterGain = null;
           this.voices = [];
-          this.volume = 0.72;
-          this.muted = false;
         }
 
         async ensureContext() {
@@ -1957,37 +1917,13 @@
           if (!this.context) {
             this.context = new AudioContextClass();
             this.masterGain = this.context.createGain();
-            this.masterGain.gain.setValueAtTime(this._effectiveVolume(), this.context.currentTime);
+            this.masterGain.gain.setValueAtTime(0.72, this.context.currentTime);
             this.masterGain.connect(this.context.destination);
           }
           if (this.context.state === "suspended") {
             await this.context.resume();
           }
           return this.context;
-        }
-
-        _effectiveVolume() {
-          return this.muted ? 0 : this.volume;
-        }
-
-        _applyGain() {
-          if (!this.context || !this.masterGain) {
-            return;
-          }
-          const now = this.context.currentTime;
-          this.masterGain.gain.cancelScheduledValues(now);
-          this.masterGain.gain.setTargetAtTime(this._effectiveVolume(), now, 0.015);
-        }
-
-        setVolume(volume) {
-          const numeric = Number(volume);
-          this.volume = Number.isFinite(numeric) ? Math.max(0, Math.min(1, numeric)) : this.volume;
-          this._applyGain();
-        }
-
-        setMuted(muted) {
-          this.muted = Boolean(muted);
-          this._applyGain();
         }
 
         scheduleEvent(event, contextTime, playbackSpeed, offsetSeconds = 0) {
@@ -2114,12 +2050,8 @@
           }
           try {
             await this.audioEngine.ensureContext();
-            this.dispatchEvent(new CustomEvent("audiowarning", { detail: { message: "" } }));
           } catch (error) {
             console.warn(error instanceof Error ? error.message : "Audio initialization failed.");
-            this.dispatchEvent(new CustomEvent("audiowarning", {
-              detail: { message: "Audio unavailable in this browser — playback will be silent." },
-            }));
           }
           this.clockStartedAtMs = performance.now();
           this.clockStartedAtTimelineS = startTime;
@@ -2517,60 +2449,6 @@
         }
       }
 
-      function setPlaybackAudioWarning(message) {
-        playbackAudioWarning = message || "";
-        updateNowPlayingLabel();
-      }
-
-      // Identifies which mode's timeline is currently loaded into the
-      // always-visible transport, and (with higher priority) surfaces an
-      // audio initialization warning using the app's existing .status /
-      // .status.warn language. Self-clears whenever there is no loaded
-      // timeline, so no other code path needs to remember to reset it.
-      function updateNowPlayingLabel() {
-        if (!transportEls.sourceLabel) {
-          return;
-        }
-        const hasTimeline = Boolean(projectState.timeline && timelineEvents(projectState.timeline).length > 0);
-        const source = projectState.playbackSource;
-
-        if (!hasTimeline || !source) {
-          playbackAudioWarning = "";
-          transportEls.sourceLabel.hidden = true;
-          transportEls.sourceLabel.textContent = "";
-          transportEls.sourceLabel.classList.remove("warn");
-          return;
-        }
-
-        if (playbackAudioWarning) {
-          transportEls.sourceLabel.hidden = false;
-          transportEls.sourceLabel.textContent = playbackAudioWarning;
-          transportEls.sourceLabel.classList.add("warn");
-          return;
-        }
-
-        const sourceName = source === "sequencer" ? "Sequencer" : "Transcriber";
-        transportEls.sourceLabel.hidden = false;
-        transportEls.sourceLabel.textContent = "Now Playing: " + sourceName;
-        transportEls.sourceLabel.classList.remove("warn");
-      }
-
-      // Mirrors SynthAudioEngine's volume/muted fields onto the transport's
-      // mute button and volume slider. The engine remains the source of
-      // truth; this only reads it, matching the read-only relationship the
-      // rest of the transport already has with PlaybackController.status.
-      function updateVolumeControls() {
-        const engine = playbackController.audioEngine;
-        if (!transportEls.muteBtn || !transportEls.volume || !engine) {
-          return;
-        }
-        transportEls.muteBtn.classList.toggle("active", Boolean(engine.muted));
-        transportEls.muteBtn.setAttribute("aria-pressed", engine.muted ? "true" : "false");
-        if (document.activeElement !== transportEls.volume) {
-          transportEls.volume.value = String(Math.round(engine.volume * 100));
-        }
-      }
-
       function updateTransportControls(status = projectState.playbackStatus) {
         const hasTimeline = Boolean(projectState.timeline && timelineEvents(projectState.timeline).length > 0);
         const duration = timelineDuration(projectState.timeline);
@@ -2579,14 +2457,10 @@
         transportEls.stopBtn.disabled = !hasTimeline;
         transportEls.restartBtn.disabled = !hasTimeline;
         transportEls.loopBtn.disabled = !hasTimeline;
-        transportEls.muteBtn.disabled = !hasTimeline;
-        transportEls.volume.disabled = !hasTimeline;
         transportEls.speed.disabled = !hasTimeline;
         transportEls.seek.disabled = !hasTimeline;
         transportEls.playBtn.classList.toggle("active", Boolean(status.isPlaying));
         transportEls.pauseBtn.classList.toggle("active", Boolean(status.isPlaying));
-        transportEls.playBtn.setAttribute("aria-pressed", status.isPlaying ? "true" : "false");
-        transportEls.pauseBtn.setAttribute("aria-pressed", status.isPlaying ? "true" : "false");
         transportEls.loopBtn.classList.toggle("active", Boolean(status.loopEnabled));
         transportEls.loopBtn.setAttribute("aria-pressed", status.loopEnabled ? "true" : "false");
         if (String(transportEls.speed.value) !== String(status.playbackSpeed)) {
@@ -2598,8 +2472,6 @@
         }
         transportEls.readout.textContent = formatPlaybackTime(status.currentTime) + " / " + formatPlaybackTime(duration);
         syncPlaybackCursor(status);
-        updateNowPlayingLabel();
-        updateVolumeControls();
       }
 
       function clearPlaybackHighlights() {
@@ -2678,7 +2550,6 @@
         }
         clearPlaybackHighlights();
         projectState.playbackSource = source;
-        playbackAudioWarning = "";
         playbackController.loadTimeline(timeline, payload.playback_status || payload.playbackStatus || {});
       }
 
@@ -2690,10 +2561,6 @@
         togglePlaybackHighlights(event.detail.previousEvent, false);
         togglePlaybackHighlights(event.detail.currentEvent, true);
         setSequencerPlaybackSelection(event.detail.currentEvent);
-      });
-
-      playbackController.addEventListener("audiowarning", (event) => {
-        setPlaybackAudioWarning(event.detail && event.detail.message ? event.detail.message : "");
       });
 
       function noteOrder(note) {
@@ -3822,9 +3689,7 @@
 
       function markSequencerStale() {
         refreshSequencerPlaybackTokenRanges();
-        let playbackWasStopped = false;
         if (projectState.playbackSource === "sequencer") {
-          playbackWasStopped = true;
           playbackController.stop();
           projectState.timeline = null;
           projectState.playbackSource = null;
@@ -3833,20 +3698,12 @@
         }
         if (seqEls.staleIndicator) {
           seqEls.staleIndicator.hidden = false;
-          if (seqEls.staleIndicatorText) {
-            seqEls.staleIndicatorText.textContent = playbackWasStopped
-              ? "Needs Update — Playback Stopped"
-              : "Needs Update";
-          }
         }
       }
 
       function clearSequencerStale() {
         if (seqEls.staleIndicator) {
           seqEls.staleIndicator.hidden = true;
-        }
-        if (seqEls.staleIndicatorText) {
-          seqEls.staleIndicatorText.textContent = "Needs Update";
         }
       }
 
@@ -4051,18 +3908,6 @@
         transportEls.loopBtn.addEventListener("click", () => {
           playbackController.setLoop(!projectState.playbackStatus.loopEnabled);
         });
-        transportEls.muteBtn.addEventListener("click", () => {
-          playbackController.audioEngine.setMuted(!playbackController.audioEngine.muted);
-          updateVolumeControls();
-        });
-        transportEls.volume.addEventListener("input", () => {
-          const nextVolume = Number(transportEls.volume.value || 0) / 100;
-          playbackController.audioEngine.setVolume(nextVolume);
-          if (nextVolume > 0 && playbackController.audioEngine.muted) {
-            playbackController.audioEngine.setMuted(false);
-          }
-          updateVolumeControls();
-        });
         transportEls.speed.addEventListener("change", () => {
           playbackController.setSpeed(Number(transportEls.speed.value || 1));
         });
@@ -4243,12 +4088,6 @@
             tagName === "SELECT" ||
             (tagName === "INPUT") ||
             (target && target.isContentEditable);
-          // A focused <button> (transport controls, mode switch, theme
-          // toggle, etc.) must keep its native Space/Enter activation.
-          // Without this exclusion, the global Space shortcut below calls
-          // preventDefault() and hijacks the keypress into
-          // togglePlayPause() instead of activating the focused button.
-          const isFocusedButton = tagName === "BUTTON";
           const isModified = event.ctrlKey || event.metaKey;
 
           if (event.key === "Escape") {
@@ -4258,7 +4097,7 @@
             return;
           }
 
-          if (!isEditableField && !isFocusedButton && !isModified) {
+          if (!isEditableField && !isModified) {
             if (event.code === "Space" || event.key === " ") {
               event.preventDefault();
               playbackController.togglePlayPause();

@@ -15,6 +15,8 @@ from urllib.request import Request, urlopen
 
 from music_scale.finder import ScaleFinder
 from music_scale.melody_transcriber import MelodyTranscriber
+from music_scale.playback import TimelineBuilder
+from music_scale.theory import TheoryEngine
 from music_scale.web_ui import (
     _ScaleRequestHandler,
     _build_config,
@@ -34,6 +36,8 @@ class WebApiTests(unittest.TestCase):
         handler = _ScaleRequestHandler
         handler.config = _build_config()
         handler.finder = ScaleFinder()
+        handler.theory = TheoryEngine()
+        handler.timeline_builder = TimelineBuilder()
         handler.transcriber = MelodyTranscriber(max_fret=handler.config["max_fret"])
         handler.html = _build_html().encode("utf-8")
         handler.transcriber_html = _build_transcriber_html().encode("utf-8")
@@ -130,6 +134,137 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(payload["selected_notes"], ["C", "E", "G"])
         self.assertEqual(payload["count"], 3)
 
+    def test_scale_analyze_endpoint_returns_structured_analysis(self) -> None:
+        status, payload = self._request_json(
+            "/api/scale/analyze",
+            method="POST",
+            payload={"notes": ["C", "D", "E", "F", "G", "A", "B"]},
+        )
+
+        self.assertEqual(status, 200)
+        analyses = self._require_list(payload["analyses"], "analyses")
+        major = next(
+            item
+            for item in analyses
+            if isinstance(item, dict)
+            and item.get("root") == "C"
+            and item.get("scale_name") == "Major (Ionian)"
+        )
+        self.assertEqual(major["interval_formula"], ["1", "2", "3", "4", "5", "6", "7"])
+        self.assertTrue(major["exact_match"])
+        self.assertEqual(major["extra_notes"], [])
+        self.assertIn("relative_major_minor", major)
+        self.assertIn("compatible_chords", major)
+
+    def test_chords_detect_endpoint_returns_ranked_candidates(self) -> None:
+        status, payload = self._request_json(
+            "/api/chords/detect",
+            method="POST",
+            payload={"notes": ["C", "E", "G", "B"]},
+        )
+
+        self.assertEqual(status, 200)
+        candidates = self._require_list(payload["candidates"], "candidates")
+        self.assertGreater(len(candidates), 0)
+        first = candidates[0]
+        self.assertIsInstance(first, dict)
+        if isinstance(first, dict):
+            self.assertEqual(first["name"], "Cmaj7")
+            self.assertEqual(first["root"], "C")
+            self.assertEqual(first["confidence"], 1.0)
+
+    def test_positions_suggest_endpoint_returns_playable_positions(self) -> None:
+        status, payload = self._request_json(
+            "/api/positions/suggest",
+            method="POST",
+            payload={"notes": ["E", "G", "A"], "max_fret": 12},
+        )
+
+        self.assertEqual(status, 200)
+        suggestions = self._require_list(payload["suggestions"], "suggestions")
+        self.assertGreater(len(suggestions), 0)
+        first = suggestions[0]
+        self.assertIsInstance(first, dict)
+        if isinstance(first, dict):
+            self.assertIn("position_number", first)
+            self.assertIn("average_fret", first)
+            self.assertIn("confidence", first)
+            self.assertIn("positions", first)
+
+    def test_playback_prepare_endpoint_returns_timeline(self) -> None:
+        status, payload = self._request_json(
+            "/api/playback/prepare",
+            method="POST",
+            payload={"note_groups": [["E4", "F#4"], ["G4"]]},
+        )
+
+        self.assertEqual(status, 200)
+        timeline = payload.get("timeline")
+        self.assertIsInstance(timeline, dict)
+        if isinstance(timeline, dict):
+            events = self._require_list(timeline.get("events"), "timeline.events")
+            self.assertEqual(len(events), 3)
+            first = events[0]
+            self.assertIsInstance(first, dict)
+            if isinstance(first, dict):
+                self.assertEqual(first["timeline_event_id"], "timeline_event_000001")
+                self.assertEqual(first["note"], "E4")
+                self.assertEqual(first["pitch_class"], "E")
+                self.assertEqual(first["string"], 1)
+                self.assertEqual(first["fret"], 0)
+                self.assertEqual(first["group_id"], "group_000001")
+            third = events[2]
+            self.assertIsInstance(third, dict)
+            if isinstance(third, dict):
+                self.assertEqual(third["group_id"], "group_000002")
+
+        tempo = payload.get("tempo")
+        self.assertIsInstance(tempo, dict)
+        if isinstance(tempo, dict):
+            self.assertEqual(tempo["bpm"], 120.0)
+
+        markers = self._require_list(payload.get("markers"), "markers")
+        self.assertGreater(len(markers), 0)
+        playback_status = payload.get("playback_status")
+        self.assertIsInstance(playback_status, dict)
+        if isinstance(playback_status, dict):
+            self.assertFalse(playback_status["is_playing"])
+            self.assertEqual(playback_status["current_time_s"], 0.0)
+            self.assertIsNone(playback_status["current_event"])
+            self.assertFalse(playback_status["loop_enabled"])
+            self.assertEqual(playback_status["playback_speed"], 1.0)
+        synchronization_ids = self._require_list(
+            payload.get("synchronization_ids"),
+            "synchronization_ids",
+        )
+        self.assertEqual(len(synchronization_ids), 3)
+
+    def test_transcribe_notes_mode_preserves_api_and_adds_timeline(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={"mode": "notes", "notes": ["E4", "F#4", "G4"]},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["notes"], ["E4", "F#4", "G4"])
+        self.assertEqual(payload["tab_tokens"], ["1:0", "1:2", "1:3"])
+        timeline = payload.get("timeline")
+        self.assertIsInstance(timeline, dict)
+        if isinstance(timeline, dict):
+            events = self._require_list(timeline.get("events"), "timeline.events")
+            self.assertEqual(len(events), 3)
+            first = events[0]
+            self.assertIsInstance(first, dict)
+            if isinstance(first, dict):
+                self.assertEqual(first["timeline_event_id"], "timeline_event_000001")
+                self.assertEqual(first["note"], "E4")
+        playback_status = payload.get("playback_status")
+        self.assertIsInstance(playback_status, dict)
+        if isinstance(playback_status, dict):
+            self.assertFalse(playback_status["is_playing"])
+            self.assertEqual(playback_status["playback_speed"], 1.0)
+
     def test_tab_sequencer_page_is_available(self) -> None:
         request = Request(f"{self._base_url}/tab-sequencer", method="GET")
         with urlopen(request, timeout=4) as response:
@@ -149,6 +284,19 @@ class WebApiTests(unittest.TestCase):
             self.assertIn("Scale Finder", body)
             self.assertIn("Transcriber", body)
             self.assertIn("Tab Sequencer", body)
+
+    def test_unified_shell_contains_playback_synchronization_hooks(self) -> None:
+        body = _build_html()
+
+        self.assertIn("id=\"transportBar\"", body)
+        self.assertIn("class PlaybackController", body)
+        self.assertIn("class SynthAudioEngine", body)
+        self.assertIn("AudioContext", body)
+        self.assertIn("requestAnimationFrame", body)
+        self.assertIn("activeeventchange", body)
+        self.assertIn("projectState.playbackStatus", body)
+        self.assertIn("data-timeline-event-id", body)
+        self.assertIn("togglePlaybackHighlights", body)
 
     def test_transcribe_notes_mode_returns_expected_data(self) -> None:
         status, payload = self._request_json(
