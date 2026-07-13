@@ -7,6 +7,7 @@ import binascii
 import cgi
 import json
 import math
+from dataclasses import MISSING, fields
 from pathlib import Path
 import shutil
 import tempfile
@@ -20,9 +21,20 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from .finder import ScaleFinder
+from .fingering import FingeringAnalyzer
 from .guitar import STANDARD_TUNING, fret_to_note, fret_to_note_name, parse_tab_position
 from .melody_transcriber import MelodyTranscriber, format_ascii_tab
-from .models import PlaybackStatus
+from .models import (
+    NoteEvent,
+    PlaybackStatus,
+    ProjectState,
+    TabPosition,
+    Tempo,
+    TimeSignature,
+    Timeline,
+    TimelineEvent,
+    TimelineMarker,
+)
 from .notes import CHROMATIC_NOTES, normalize_many
 from .playback import TimelineBuilder
 from .scales import COMMON_SCALE_PATTERNS
@@ -30,6 +42,22 @@ from .theory import TheoryEngine, dataclass_to_dict
 
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent
+
+_ANALYSIS_ENDPOINTS = {
+    "/api/analysis": "analysis",
+    "/api/fingering": "fingering",
+    "/api/difficulty": "difficulty",
+    "/api/quality": "quality",
+    "/api/alternates": "alternates",
+}
+
+
+class AnalysisApiError(ValueError):
+    """Structured validation error for the stabilized analysis API contract."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(message)
 
 
 def _build_html() -> str:
@@ -242,12 +270,13 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = self._request_path()
+        analysis_section = _ANALYSIS_ENDPOINTS.get(path)
 
         if path == "/api/transcribe-wav-upload":
             self._handle_transcribe_wav_upload()
             return
 
-        body = self._read_json_body()
+        body = self._read_json_body(analysis_errors=analysis_section is not None)
         if body is None:
             return
 
@@ -275,18 +304,32 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             self._handle_playback_prepare(body)
             return
 
+        if analysis_section is not None:
+            self._handle_analysis(body, section=analysis_section)
+            return
+
         self._send_json({"error": "Not found."}, status=404)
 
-    def _parse_content_length(self) -> int | None:
+    def _parse_content_length(self, *, analysis_errors: bool = False) -> int | None:
         raw_length = self.headers.get("Content-Length", "0")
         try:
             content_length = int(raw_length)
         except (TypeError, ValueError):
-            self._send_json({"error": "Invalid Content-Length header."}, status=400)
+            self._send_request_error(
+                "invalid_content_length",
+                "Invalid Content-Length header.",
+                status=400,
+                analysis_errors=analysis_errors,
+            )
             return None
 
         if content_length < 0:
-            self._send_json({"error": "Content-Length cannot be negative."}, status=400)
+            self._send_request_error(
+                "invalid_content_length",
+                "Content-Length cannot be negative.",
+                status=400,
+                analysis_errors=analysis_errors,
+            )
             return None
         return content_length
 
@@ -298,17 +341,19 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                 break
             remaining -= len(chunk)
 
-    def _read_json_body(self) -> dict[str, Any] | None:
-        content_length = self._parse_content_length()
+    def _read_json_body(self, *, analysis_errors: bool = False) -> dict[str, Any] | None:
+        content_length = self._parse_content_length(analysis_errors=analysis_errors)
         if content_length is None:
             return None
 
         if content_length > self.max_body_bytes:
             # Drain oversized request bodies so the client can receive a clean 413 response.
             self._drain_request_body(content_length)
-            self._send_json(
-                {"error": f"Request body too large (max {self.max_body_bytes} bytes)."},
+            self._send_request_error(
+                "request_body_too_large",
+                f"Request body too large (max {self.max_body_bytes} bytes).",
                 status=413,
+                analysis_errors=analysis_errors,
             )
             return None
 
@@ -318,14 +363,29 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
             decoded = raw_body.decode("utf-8")
             parsed = json.loads(decoded)
         except UnicodeDecodeError:
-            self._send_json({"error": "Body must be UTF-8 encoded JSON."}, status=400)
+            self._send_request_error(
+                "invalid_encoding",
+                "Body must be UTF-8 encoded JSON.",
+                status=400,
+                analysis_errors=analysis_errors,
+            )
             return None
         except json.JSONDecodeError:
-            self._send_json({"error": "Invalid JSON."}, status=400)
+            self._send_request_error(
+                "malformed_json",
+                "Invalid JSON.",
+                status=400,
+                analysis_errors=analysis_errors,
+            )
             return None
 
         if not isinstance(parsed, dict):
-            self._send_json({"error": "JSON body must be an object."}, status=400)
+            self._send_request_error(
+                "invalid_json_body",
+                "JSON body must be an object.",
+                status=400,
+                analysis_errors=analysis_errors,
+            )
             return None
 
         return parsed
@@ -487,6 +547,375 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
                 ],
             }
         )
+
+    def _handle_analysis(self, body: dict[str, Any], *, section: str) -> None:
+        try:
+            state = self._analysis_project_state(body)
+            analyzed_state = FingeringAnalyzer().analyze(state)
+        except AnalysisApiError as exc:
+            self._send_analysis_error(exc.code, str(exc), status=400)
+            return
+        except (TypeError, ValueError) as exc:
+            self._send_analysis_error(
+                self._analysis_error_code(str(exc)),
+                str(exc),
+                status=400,
+            )
+            return
+
+        results = analyzed_state.analysis_results
+        if section == "analysis":
+            self._send_analysis_success("analysis", dataclass_to_dict(results))
+        elif section == "fingering":
+            self._send_analysis_success("fingering", dataclass_to_dict(results.fingering))
+        elif section == "difficulty":
+            self._send_analysis_success(
+                "difficulty",
+                dataclass_to_dict(results.performance.difficulty),
+            )
+        elif section == "quality":
+            self._send_analysis_success("quality", dataclass_to_dict(results.quality))
+        elif section == "alternates":
+            self._send_analysis_success(
+                "alternates",
+                [
+                    dataclass_to_dict(alternate)
+                    for alternate in results.fingering.alternate_fingerings
+                ],
+            )
+        else:  # pragma: no cover - route table prevents this.
+            self._send_analysis_error(
+                "internal_error",
+                "Unknown analysis section.",
+                status=500,
+            )
+
+    def _analysis_project_state(self, body: dict[str, Any]) -> ProjectState:
+        raw_project = body.get("project_state")
+        if raw_project is not None:
+            if not isinstance(raw_project, dict):
+                raise AnalysisApiError(
+                    "invalid_project_state",
+                    "Field 'project_state' must be an object.",
+                )
+            return self._project_state_from_dict(raw_project)
+
+        if any(key in body for key in ("generated_events", "tab_positions", "timeline")):
+            return self._project_state_from_dict(body)
+
+        try:
+            note_groups, derived_preferred_tabs = self._playback_note_groups(body)
+        except ValueError as exc:
+            raise AnalysisApiError("invalid_note_payload", str(exc)) from exc
+        if not note_groups:
+            raise AnalysisApiError(
+                "unsupported_payload",
+                "Provide canonical project_state data or note tokens for analysis.",
+            )
+        notes = [token for group in note_groups for token in group]
+        preferred_tabs = self._playback_preferred_tabs(
+            body,
+            note_count=len(notes),
+            fallback=derived_preferred_tabs,
+        )
+        result = self.transcriber.transcribe_notes(notes, preferred_tabs=preferred_tabs)
+        timeline = self.timeline_builder.build(
+            result.events,
+            tabs=result.tabs,
+            group_lengths=[len(group) for group in note_groups],
+            source="analysis_api",
+        )
+        return ProjectState(
+            tuning=result.project_state.tuning,
+            selected_notes=result.project_state.selected_notes,
+            generated_events=result.events,
+            tab_positions=result.tabs,
+            timeline=timeline,
+            tempo=timeline.tempo,
+        )
+
+    def _project_state_from_dict(self, raw: dict[str, Any]) -> ProjectState:
+        generated_events = tuple(
+            self._model_from_dict(NoteEvent, item, "generated_events")
+            for item in self._required_list(raw, "generated_events")
+        )
+        tab_positions = tuple(
+            self._model_from_dict(TabPosition, item, "tab_positions")
+            for item in self._required_list(raw, "tab_positions")
+        )
+        raw_timeline = raw.get("timeline")
+        if not isinstance(raw_timeline, dict):
+            raise AnalysisApiError("invalid_timeline", "Field 'timeline' must be an object.")
+        timeline = self._timeline_from_dict(raw_timeline)
+        tempo = self._tempo_from_dict(raw.get("tempo", None)) or timeline.tempo
+
+        try:
+            return ProjectState(
+                project_id=str(raw.get("project_id", "project_default")),
+                tuning=self._tuple_pairs(raw.get("tuning", ())),
+                selected_notes=tuple(str(note) for note in raw.get("selected_notes", ())),
+                selected_scale=raw.get("selected_scale", None),
+                generated_events=generated_events,
+                tab_positions=tab_positions,
+                timeline=timeline,
+                tempo=tempo,
+            )
+        except (TypeError, ValueError) as exc:
+            raise AnalysisApiError("invalid_project_state", str(exc)) from exc
+
+    def _timeline_from_dict(self, raw: dict[str, Any]) -> Timeline:
+        events = tuple(
+            self._model_from_dict(TimelineEvent, item, "timeline.events")
+            for item in self._list_from(raw, "events", field_name="timeline.events")
+        )
+        markers = tuple(
+            self._model_from_dict(TimelineMarker, item, "timeline.markers")
+            for item in self._list_from(raw, "markers", field_name="timeline.markers")
+        )
+        tempo = self._tempo_from_dict(raw.get("tempo", None)) or Tempo()
+        time_signature = self._time_signature_from_dict(
+            raw.get("time_signature", None)
+        ) or TimeSignature()
+        try:
+            return Timeline(
+                timeline_id=str(raw.get("timeline_id", "timeline_default")),
+                events=events,
+                markers=markers,
+                tempo=tempo,
+                time_signature=time_signature,
+                duration_s=float(raw.get("duration_s", 0.0)),
+                duration_beats=float(raw.get("duration_beats", 0.0)),
+                beat_grid=tuple(float(value) for value in raw.get("beat_grid", ())),
+                measure_count=int(raw.get("measure_count", 0)),
+            )
+        except (TypeError, ValueError) as exc:
+            raise AnalysisApiError(
+                "invalid_timeline",
+                "Timeline numeric fields must contain valid numbers.",
+            ) from exc
+
+    @staticmethod
+    def _model_from_dict(model_type: Any, raw: Any, field_name: str) -> Any:
+        if not isinstance(raw, dict):
+            raise AnalysisApiError(
+                _ScaleRequestHandler._analysis_field_error_code(field_name),
+                f"Field '{field_name}' must contain objects.",
+            )
+        model_fields = fields(model_type)
+        allowed = {field.name for field in model_fields}
+        values = {key: value for key, value in raw.items() if key in allowed}
+        for field in model_fields:
+            if (
+                field.name not in values
+                and field.default is MISSING
+                and field.default_factory is MISSING
+            ):
+                raise AnalysisApiError(
+                    "missing_required_field",
+                    f"Field '{field_name}.{field.name}' is required.",
+                )
+        try:
+            model = model_type(**values)
+        except (TypeError, ValueError) as exc:
+            raise AnalysisApiError(
+                _ScaleRequestHandler._analysis_field_error_code(field_name),
+                f"Field '{field_name}' contains invalid data.",
+            ) from exc
+        _ScaleRequestHandler._validate_analysis_model_payload(model, field_name)
+        return model
+
+    @staticmethod
+    def _validate_analysis_model_payload(model: Any, field_name: str) -> None:
+        if isinstance(model, NoteEvent):
+            code = "invalid_note_events"
+            _ScaleRequestHandler._require_api_string(model.event_id, f"{field_name}.event_id", code)
+            _ScaleRequestHandler._require_api_string(model.note, f"{field_name}.note", code)
+            _ScaleRequestHandler._require_api_number(model.octave, f"{field_name}.octave", code)
+            _ScaleRequestHandler._require_api_number(model.midi, f"{field_name}.midi", code)
+            _ScaleRequestHandler._require_api_number(
+                model.frequency_hz,
+                f"{field_name}.frequency_hz",
+                code,
+            )
+            _ScaleRequestHandler._require_api_number(model.start_s, f"{field_name}.start_s", code)
+            _ScaleRequestHandler._require_api_number(model.end_s, f"{field_name}.end_s", code)
+        elif isinstance(model, TabPosition):
+            code = "invalid_tab_positions"
+            _ScaleRequestHandler._require_api_string(
+                model.position_id,
+                f"{field_name}.position_id",
+                code,
+            )
+            _ScaleRequestHandler._require_api_string(model.event_id, f"{field_name}.event_id", code)
+            _ScaleRequestHandler._require_api_number(
+                model.string_id,
+                f"{field_name}.string_id",
+                code,
+            )
+            _ScaleRequestHandler._require_api_number(model.fret, f"{field_name}.fret", code)
+            _ScaleRequestHandler._require_api_number(model.midi, f"{field_name}.midi", code)
+            _ScaleRequestHandler._require_api_string(model.note, f"{field_name}.note", code)
+            _ScaleRequestHandler._require_api_number(model.octave, f"{field_name}.octave", code)
+        elif isinstance(model, TimelineEvent):
+            code = "invalid_timeline"
+            _ScaleRequestHandler._require_api_string(
+                model.timeline_event_id,
+                f"{field_name}.timeline_event_id",
+                code,
+            )
+            _ScaleRequestHandler._require_api_string(
+                model.note_event_id,
+                f"{field_name}.note_event_id",
+                code,
+            )
+            if model.tab_position_id is not None:
+                _ScaleRequestHandler._require_api_string(
+                    model.tab_position_id,
+                    f"{field_name}.tab_position_id",
+                    code,
+                )
+            _ScaleRequestHandler._require_api_string(model.group_id, f"{field_name}.group_id", code)
+            _ScaleRequestHandler._require_api_string(model.note, f"{field_name}.note", code)
+            _ScaleRequestHandler._require_api_string(
+                model.pitch_class,
+                f"{field_name}.pitch_class",
+                code,
+            )
+            for attribute in (
+                "midi",
+                "string",
+                "fret",
+                "start_s",
+                "duration_s",
+                "start_beat",
+                "duration_beats",
+                "measure",
+                "bar",
+            ):
+                value = getattr(model, attribute)
+                if value is not None:
+                    _ScaleRequestHandler._require_api_number(
+                        value,
+                        f"{field_name}.{attribute}",
+                        code,
+                    )
+            _ScaleRequestHandler._require_api_string(model.source, f"{field_name}.source", code)
+        elif isinstance(model, TimelineMarker):
+            code = "invalid_timeline"
+            _ScaleRequestHandler._require_api_string(
+                model.marker_id,
+                f"{field_name}.marker_id",
+                code,
+            )
+            _ScaleRequestHandler._require_api_string(
+                model.marker_type,
+                f"{field_name}.marker_type",
+                code,
+            )
+            _ScaleRequestHandler._require_api_string(model.label, f"{field_name}.label", code)
+            for attribute in ("time_s", "beat", "measure", "bar"):
+                _ScaleRequestHandler._require_api_number(
+                    getattr(model, attribute),
+                    f"{field_name}.{attribute}",
+                    code,
+                )
+
+    @staticmethod
+    def _require_api_string(value: Any, field_name: str, code: str) -> None:
+        if not isinstance(value, str) or not value:
+            raise AnalysisApiError(code, f"Field '{field_name}' must be a non-empty string.")
+
+    @staticmethod
+    def _require_api_number(value: Any, field_name: str, code: str) -> None:
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise AnalysisApiError(code, f"Field '{field_name}' must be numeric.")
+        if not math.isfinite(float(value)):
+            raise AnalysisApiError(code, f"Field '{field_name}' must be finite.")
+
+    @staticmethod
+    def _tempo_from_dict(raw: Any) -> Tempo | None:
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            raise AnalysisApiError("invalid_tempo", "Field 'tempo' must be an object.")
+        try:
+            return Tempo(
+                bpm=float(raw.get("bpm", 120.0)),
+                beat_unit=int(raw.get("beat_unit", 4)),
+            )
+        except (TypeError, ValueError) as exc:
+            raise AnalysisApiError(
+                "invalid_tempo",
+                "Field 'tempo' contains invalid data.",
+            ) from exc
+
+    @staticmethod
+    def _time_signature_from_dict(raw: Any) -> TimeSignature | None:
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            raise AnalysisApiError(
+                "invalid_time_signature",
+                "Field 'time_signature' must be an object.",
+            )
+        try:
+            return TimeSignature(
+                beats_per_measure=int(raw.get("beats_per_measure", 4)),
+                beat_unit=int(raw.get("beat_unit", 4)),
+            )
+        except (TypeError, ValueError) as exc:
+            raise AnalysisApiError(
+                "invalid_time_signature",
+                "Field 'time_signature' contains invalid data.",
+            ) from exc
+
+    @staticmethod
+    def _required_list(raw: dict[str, Any], key: str) -> list[Any]:
+        values = raw.get(key)
+        if not isinstance(values, list):
+            raise AnalysisApiError(
+                "missing_required_field",
+                f"Field '{key}' must be a list.",
+            )
+        return values
+
+    @staticmethod
+    def _list_from(
+        raw: dict[str, Any],
+        key: str,
+        *,
+        field_name: str | None = None,
+    ) -> list[Any]:
+        values = raw.get(key, [])
+        if not isinstance(values, list):
+            display_name = field_name or key
+            raise AnalysisApiError(
+                _ScaleRequestHandler._analysis_field_error_code(display_name),
+                f"Field '{display_name}' must be a list.",
+            )
+        return values
+
+    @staticmethod
+    def _tuple_pairs(raw: Any) -> tuple[tuple[int, str], ...]:
+        if raw is None:
+            return ()
+        if not isinstance(raw, list | tuple):
+            raise AnalysisApiError("invalid_project_state", "Field 'tuning' must be a list.")
+        pairs: list[tuple[int, str]] = []
+        for item in raw:
+            if not isinstance(item, list | tuple) or len(item) != 2:
+                raise AnalysisApiError(
+                    "invalid_project_state",
+                    "Field 'tuning' must contain string pairs.",
+                )
+            try:
+                pairs.append((int(item[0]), str(item[1])))
+            except (TypeError, ValueError) as exc:
+                raise AnalysisApiError(
+                    "invalid_project_state",
+                    "Field 'tuning' contains invalid data.",
+                ) from exc
+        return tuple(pairs)
 
     def _playback_note_groups(
         self,
@@ -996,6 +1425,65 @@ class _ScaleRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_request_error(
+        self,
+        code: str,
+        message: str,
+        *,
+        status: int,
+        analysis_errors: bool,
+    ) -> None:
+        if analysis_errors:
+            self._send_analysis_error(code, message, status=status)
+            return
+        self._send_json({"error": message}, status=status)
+
+    def _send_analysis_error(self, code: str, message: str, *, status: int) -> None:
+        self._send_json(
+            {
+                "success": False,
+                "error": {
+                    "code": code,
+                    "message": message,
+                },
+            },
+            status=status,
+        )
+
+    def _send_analysis_success(self, key: str, value: Any) -> None:
+        self._send_json(
+            {
+                "success": True,
+                "data": {
+                    key: value,
+                },
+                key: value,
+            }
+        )
+
+    @staticmethod
+    def _analysis_field_error_code(field_name: str) -> str:
+        if field_name.startswith("generated_events"):
+            return "invalid_note_events"
+        if field_name.startswith("tab_positions"):
+            return "invalid_tab_positions"
+        if field_name.startswith("timeline"):
+            return "invalid_timeline"
+        return "invalid_project_state"
+
+    @staticmethod
+    def _analysis_error_code(message: str) -> str:
+        normalized = message.lower()
+        if "noteevent" in normalized or "generated_events" in normalized:
+            return "invalid_note_events"
+        if "tabposition" in normalized or "tab_positions" in normalized:
+            return "invalid_tab_positions"
+        if "timeline" in normalized:
+            return "invalid_timeline"
+        if "note_groups" in normalized or "notes" in normalized or "note tokens" in normalized:
+            return "invalid_note_payload"
+        return "invalid_project_state"
 
     def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
         raw = json.dumps(payload).encode("utf-8")

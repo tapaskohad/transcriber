@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from dataclasses import asdict
 import io
 import json
 import math
@@ -83,6 +84,31 @@ class WebApiTests(unittest.TestCase):
                 self.fail("Expected JSON object response body.")
             return exc.code, cast(dict[str, object], parsed)
 
+    def _request_raw_json(
+        self,
+        path: str,
+        raw_body: bytes,
+        *,
+        method: str = "POST",
+    ) -> tuple[int, dict[str, object]]:
+        request = Request(
+            f"{self._base_url}{path}",
+            data=raw_body,
+            method=method,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=4) as response:
+                parsed = json.loads(response.read().decode("utf-8"))
+                if not isinstance(parsed, dict):
+                    self.fail("Expected JSON object response body.")
+                return response.status, cast(dict[str, object], parsed)
+        except HTTPError as exc:
+            parsed = json.loads(exc.read().decode("utf-8"))
+            if not isinstance(parsed, dict):
+                self.fail("Expected JSON object response body.")
+            return exc.code, cast(dict[str, object], parsed)
+
     def _require_str(self, value: object, field: str) -> str:
         if not isinstance(value, str):
             self.fail(f"Expected '{field}' to be a string, got {type(value).__name__}.")
@@ -92,6 +118,31 @@ class WebApiTests(unittest.TestCase):
         if not isinstance(value, list):
             self.fail(f"Expected '{field}' to be a list, got {type(value).__name__}.")
         return value
+
+    def _require_dict(self, value: object, field: str) -> dict[str, object]:
+        if not isinstance(value, dict):
+            self.fail(f"Expected '{field}' to be an object, got {type(value).__name__}.")
+        return cast(dict[str, object], value)
+
+    def _require_analysis_error(
+        self,
+        payload: dict[str, object],
+        *,
+        code: str,
+    ) -> dict[str, object]:
+        self.assertFalse(payload["success"])
+        error = self._require_dict(payload.get("error"), "error")
+        self.assertEqual(list(error.keys()), ["code", "message"])
+        self.assertEqual(error["code"], code)
+        self.assertIsInstance(error["message"], str)
+        return error
+
+    def _analysis_payload(self) -> dict[str, object]:
+        result = MelodyTranscriber().transcribe_notes(["E4", "F#4", "G4", "A4"])
+        return {"project_state": asdict(result.project_state)}
+
+    def _mutable_analysis_payload(self) -> dict[str, object]:
+        return cast(dict[str, object], json.loads(json.dumps(self._analysis_payload())))
 
     def _build_test_wav_bytes(self) -> bytes:
         sample_rate = 8000
@@ -239,6 +290,314 @@ class WebApiTests(unittest.TestCase):
         )
         self.assertEqual(len(synchronization_ids), 3)
 
+    def test_analysis_endpoint_returns_complete_analysis(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        analysis = self._require_dict(payload.get("analysis"), "analysis")
+        fingering = self._require_dict(analysis.get("fingering"), "analysis.fingering")
+        assignments = self._require_list(fingering.get("assignments"), "assignments")
+        self.assertEqual(len(assignments), 4)
+        first_assignment = self._require_dict(assignments[0], "assignments[0]")
+        self.assertEqual(first_assignment["timeline_event_id"], "timeline_event_000001")
+        self.assertEqual(first_assignment["note_event_id"], "event_000001")
+        self.assertIn("performance", analysis)
+        self.assertIn("quality", analysis)
+        self.assertIn("practice", analysis)
+
+    def test_fingering_endpoint_returns_fingering_analysis_only(self) -> None:
+        status, payload = self._request_json(
+            "/api/fingering",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        self.assertNotIn("analysis", payload)
+        fingering = self._require_dict(payload.get("fingering"), "fingering")
+        assignments = self._require_list(fingering.get("assignments"), "assignments")
+        alternates = self._require_list(
+            fingering.get("alternate_fingerings"),
+            "alternate_fingerings",
+        )
+        self.assertEqual(len(assignments), 4)
+        self.assertGreater(len(alternates), 0)
+        first_alternate = self._require_dict(alternates[0], "alternate_fingerings[0]")
+        self.assertEqual(first_alternate["candidate_id"], "alternate_candidate_000001")
+
+    def test_difficulty_endpoint_returns_difficulty_score_only(self) -> None:
+        status, payload = self._request_json(
+            "/api/difficulty",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        self.assertNotIn("analysis", payload)
+        difficulty = self._require_dict(payload.get("difficulty"), "difficulty")
+        self.assertEqual(difficulty["score_id"], "difficulty_000001")
+        self.assertIn(difficulty["difficulty_level"], ["Easy", "Moderate", "Hard", "Expert"])
+        self.assertIn("overall_score", difficulty)
+        self.assertIn("reason_summary", difficulty)
+
+    def test_quality_endpoint_returns_quality_report_only(self) -> None:
+        status, payload = self._request_json(
+            "/api/quality",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        self.assertNotIn("analysis", payload)
+        quality = self._require_dict(payload.get("quality"), "quality")
+        self.assertIn("overall_quality_score", quality)
+        self.assertIn(quality["quality_level"], ["Excellent", "Good", "Fair", "Poor"])
+        self.assertIn("quality_issues", quality)
+        self.assertIn("recommendations", quality)
+        self.assertIn("summary", quality)
+
+    def test_alternates_endpoint_returns_alternate_fingerings_only(self) -> None:
+        status, payload = self._request_json(
+            "/api/alternates",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        self.assertNotIn("analysis", payload)
+        alternates = self._require_list(payload.get("alternates"), "alternates")
+        self.assertGreater(len(alternates), 0)
+        first = self._require_dict(alternates[0], "alternates[0]")
+        self.assertEqual(first["candidate_id"], "alternate_candidate_000001")
+        replacement_tabs = self._require_list(
+            first.get("replacement_tab_positions"),
+            "replacement_tab_positions",
+        )
+        self.assertEqual(len(replacement_tabs), 4)
+
+    def test_analysis_endpoints_use_stable_success_contract(self) -> None:
+        cases = [
+            ("/api/analysis", "analysis"),
+            ("/api/fingering", "fingering"),
+            ("/api/difficulty", "difficulty"),
+            ("/api/quality", "quality"),
+            ("/api/alternates", "alternates"),
+        ]
+
+        for path, result_key in cases:
+            with self.subTest(path=path):
+                status, payload = self._request_json(
+                    path,
+                    method="POST",
+                    payload=self._analysis_payload(),
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(list(payload.keys()), ["success", "data", result_key])
+                self.assertTrue(payload["success"])
+                data = self._require_dict(payload.get("data"), "data")
+                self.assertEqual(list(data.keys()), [result_key])
+                self.assertEqual(payload[result_key], data[result_key])
+
+    def test_analysis_response_schema_keeps_stable_core_keys(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        analysis = self._require_dict(payload.get("analysis"), "analysis")
+        self.assertEqual(
+            list(analysis.keys()),
+            [
+                "analysis_id",
+                "fingering",
+                "performance",
+                "quality",
+                "practice",
+                "generated_from_timeline_id",
+                "metrics",
+            ],
+        )
+        self.assertNotIn("timeline", analysis)
+        self.assertNotIn("generated_events", analysis)
+
+        fingering = self._require_dict(analysis.get("fingering"), "analysis.fingering")
+        self.assertEqual(
+            list(fingering.keys()),
+            [
+                "analysis_id",
+                "assignments",
+                "stretch_issues",
+                "position_shifts",
+                "alternate_fingerings",
+                "difficulty",
+                "metrics",
+            ],
+        )
+        assignments = self._require_list(fingering.get("assignments"), "assignments")
+        first_assignment = self._require_dict(assignments[0], "assignments[0]")
+        self.assertEqual(
+            list(first_assignment.keys()),
+            [
+                "assignment_id",
+                "timeline_event_id",
+                "note_event_id",
+                "tab_position_id",
+                "finger",
+                "position_fret",
+                "confidence",
+                "reason",
+            ],
+        )
+
+    def test_analysis_endpoint_responses_are_deterministic(self) -> None:
+        payload = self._analysis_payload()
+
+        first_status, first_payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=payload,
+        )
+        second_status, second_payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=payload,
+        )
+
+        self.assertEqual(first_status, 200)
+        self.assertEqual(second_status, 200)
+        self.assertEqual(first_payload, second_payload)
+
+    def test_analysis_endpoint_preserves_legacy_top_level_result_key(self) -> None:
+        status, payload = self._request_json(
+            "/api/fingering",
+            method="POST",
+            payload=self._analysis_payload(),
+        )
+
+        self.assertEqual(status, 200)
+        data = self._require_dict(payload.get("data"), "data")
+        self.assertIn("fingering", payload)
+        self.assertEqual(payload["fingering"], data["fingering"])
+
+    def test_analysis_endpoint_accepts_existing_note_payload(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload={"note_groups": [["E4", "F#4"], ["G4", "A4"]]},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["success"])
+        analysis = self._require_dict(payload.get("analysis"), "analysis")
+        fingering = self._require_dict(analysis.get("fingering"), "analysis.fingering")
+        assignments = self._require_list(fingering.get("assignments"), "assignments")
+        self.assertEqual(len(assignments), 4)
+
+    def test_analysis_endpoints_reject_unsupported_payload_consistently(self) -> None:
+        for path in (
+            "/api/analysis",
+            "/api/fingering",
+            "/api/difficulty",
+            "/api/quality",
+            "/api/alternates",
+        ):
+            with self.subTest(path=path):
+                status, payload = self._request_json(path, method="POST", payload={})
+
+                self.assertEqual(status, 400)
+                self.assertEqual(list(payload.keys()), ["success", "error"])
+                error = self._require_analysis_error(payload, code="unsupported_payload")
+                self.assertIn("project_state", str(error["message"]))
+
+    def test_analysis_endpoint_rejects_malformed_json_with_contract_error(self) -> None:
+        status, payload = self._request_raw_json("/api/analysis", b'{"project_state":')
+
+        self.assertEqual(status, 400)
+        self._require_analysis_error(payload, code="malformed_json")
+
+    def test_analysis_endpoint_rejects_non_object_json_with_contract_error(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=["E4", "F#4"],
+        )
+
+        self.assertEqual(status, 400)
+        self._require_analysis_error(payload, code="invalid_json_body")
+
+    def test_analysis_endpoint_rejects_missing_required_project_fields(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload={
+                "project_state": {
+                    "generated_events": [],
+                    "timeline": {"events": []},
+                }
+            },
+        )
+
+        self.assertEqual(status, 400)
+        error = self._require_analysis_error(payload, code="missing_required_field")
+        self.assertIn("tab_positions", str(error["message"]))
+
+    def test_analysis_endpoint_rejects_invalid_timeline_payload(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload={
+                "project_state": {
+                    "generated_events": [],
+                    "tab_positions": [],
+                    "timeline": {"events": "not a list"},
+                }
+            },
+        )
+
+        self.assertEqual(status, 400)
+        error = self._require_analysis_error(payload, code="invalid_timeline")
+        self.assertIn("timeline.events", str(error["message"]))
+
+    def test_analysis_endpoint_rejects_invalid_note_event_payload(self) -> None:
+        payload = self._mutable_analysis_payload()
+        project = self._require_dict(payload.get("project_state"), "project_state")
+        events = self._require_list(project.get("generated_events"), "generated_events")
+        first_event = self._require_dict(events[0], "generated_events[0]")
+        first_event["start_s"] = "not numeric"
+
+        status, response = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload=payload,
+        )
+
+        self.assertEqual(status, 400)
+        error = self._require_analysis_error(response, code="invalid_note_events")
+        self.assertIn("start_s", str(error["message"]))
+
+    def test_analysis_endpoint_rejects_invalid_project_state(self) -> None:
+        status, payload = self._request_json(
+            "/api/analysis",
+            method="POST",
+            payload={"project_state": {"generated_events": [], "tab_positions": []}},
+        )
+
+        self.assertEqual(status, 400)
+        error = self._require_analysis_error(payload, code="invalid_timeline")
+        self.assertIn("timeline", str(error["message"]))
+
     def test_transcribe_notes_mode_preserves_api_and_adds_timeline(self) -> None:
         status, payload = self._request_json(
             "/api/transcribe",
@@ -295,6 +654,10 @@ class WebApiTests(unittest.TestCase):
         self.assertIn("requestAnimationFrame", body)
         self.assertIn("activeeventchange", body)
         self.assertIn("projectState.playbackStatus", body)
+        self.assertIn("projectState.analysisResults", body)
+        self.assertIn("buildAnalysisProjectState", body)
+        self.assertIn("requestAnalysisForPayload", body)
+        self.assertIn('postJsonWithXhr("/api/analysis"', body)
         self.assertIn("data-timeline-event-id", body)
         self.assertIn("togglePlaybackHighlights", body)
 

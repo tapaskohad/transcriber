@@ -202,7 +202,173 @@ class QualityReport:
     score: float | None = None
     warnings: tuple[str, ...] = ()
     metrics: dict[str, float] = field(default_factory=dict)
-    # TODO: Add movement, span, fingering, readability, and confidence metrics.
+    overall_quality_score: float | None = None
+    quality_level: str = "unrated"
+    quality_issues: tuple[str, ...] = ()
+    recommendations: tuple[str, ...] = ()
+    confidence: float = 0.0
+    summary: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class FingerAssignment:
+    """A suggested fretting-hand finger for one canonical timeline event."""
+
+    assignment_id: str
+    timeline_event_id: str
+    note_event_id: str
+    tab_position_id: str | None
+    finger: int | None
+    position_fret: int | None = None
+    confidence: float = 0.0
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class StretchIssue:
+    """A detected stretch concern across canonical timeline events."""
+
+    issue_id: str
+    timeline_event_ids: tuple[str, ...]
+    assignment_ids: tuple[str, ...] = ()
+    note_event_ids: tuple[str, ...] = ()
+    tab_position_ids: tuple[str, ...] = ()
+    fret_span: int = 0
+    position_fret: int | None = None
+    severity: str = "info"
+    reason: str = ""
+    confidence: float = 0.0
+    message: str = ""
+    suggested_position_fret: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PositionShift:
+    """A suggested hand-position shift anchored to timeline events."""
+
+    shift_id: str
+    from_timeline_event_id: str
+    to_timeline_event_id: str
+    from_note_event_id: str = ""
+    to_note_event_id: str = ""
+    from_tab_position_id: str | None = None
+    to_tab_position_id: str | None = None
+    from_position_fret: int | None = None
+    to_position_fret: int | None = None
+    distance: int = 0
+    confidence: float = 0.0
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class TabQualityIssue:
+    """A tab-quality issue tied to canonical synchronization IDs."""
+
+    issue_id: str
+    timeline_event_id: str | None
+    note_event_id: str | None
+    tab_position_id: str | None
+    category: str
+    severity: str = "info"
+    message: str = ""
+    metric: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DifficultyScore:
+    """Explainable difficulty score for a timeline, phrase, or event window."""
+
+    score_id: str
+    overall: float = 0.0
+    label: str = "unrated"
+    stretch: float = 0.0
+    movement: float = 0.0
+    speed: float = 0.0
+    position_shifts: float = 0.0
+    string_crossing: float = 0.0
+    fingering: float = 0.0
+    confidence: float = 0.0
+    overall_score: float = 0.0
+    difficulty_level: str = "unrated"
+    stretch_score: float = 0.0
+    movement_score: float = 0.0
+    position_shift_score: float = 0.0
+    finger_complexity_score: float = 0.0
+    open_string_bonus: float = 0.0
+    reason_summary: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class AlternateFingering:
+    """A ranked alternate tab/finger path for the same canonical note events."""
+
+    alternate_id: str
+    timeline_event_ids: tuple[str, ...]
+    note_event_ids: tuple[str, ...]
+    tab_positions: tuple[TabPosition, ...] = ()
+    finger_assignments: tuple[FingerAssignment, ...] = ()
+    quality_score: float = 0.0
+    difficulty_score: DifficultyScore | None = None
+    tradeoffs: tuple[str, ...] = ()
+    candidate_id: str = ""
+    replacement_tab_positions: tuple[TabPosition, ...] = ()
+    summary: str = ""
+    confidence: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class FingeringAnalysis:
+    """Fingering-specific analysis keyed to canonical timeline entities."""
+
+    analysis_id: str = "fingering_analysis_default"
+    assignments: tuple[FingerAssignment, ...] = ()
+    stretch_issues: tuple[StretchIssue, ...] = ()
+    position_shifts: tuple[PositionShift, ...] = ()
+    alternate_fingerings: tuple[AlternateFingering, ...] = ()
+    difficulty: DifficultyScore | None = None
+    metrics: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class PerformanceAnalysis:
+    """Playability and performance-risk analysis for a canonical timeline."""
+
+    analysis_id: str = "performance_analysis_default"
+    difficulty: DifficultyScore = field(
+        default_factory=lambda: DifficultyScore(score_id="difficulty_000000")
+    )
+    movement_score: float = 0.0
+    stretch_score: float = 0.0
+    timing_pressure: float = 0.0
+    open_string_usage: int = 0
+    position_shift_count: int = 0
+    issues: tuple[TabQualityIssue, ...] = ()
+    metrics: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class PracticeAnalysis:
+    """Placeholder for future practice-mode recommendations."""
+
+    analysis_id: str = "practice_analysis_default"
+    focus_timeline_event_ids: tuple[str, ...] = ()
+    loop_start_event_id: str | None = None
+    loop_end_event_id: str | None = None
+    recommended_tempo_bpm: float | None = None
+    notes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisResults:
+    """Canonical Phase E analysis container for a project state."""
+
+    analysis_id: str = "analysis_results_default"
+    fingering: FingeringAnalysis = field(default_factory=FingeringAnalysis)
+    performance: PerformanceAnalysis = field(default_factory=PerformanceAnalysis)
+    quality: QualityReport = field(default_factory=QualityReport)
+    practice: PracticeAnalysis = field(default_factory=PracticeAnalysis)
+    generated_from_timeline_id: str | None = None
+    metrics: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,6 +456,7 @@ class ProjectState:
     playback_status: PlaybackStatus = field(default_factory=PlaybackStatus)
     export_metadata: ExportMetadata = field(default_factory=ExportMetadata)
     quality_metadata: QualityReport = field(default_factory=QualityReport)
+    analysis_results: AnalysisResults = field(default_factory=AnalysisResults)
     scale_analyses: tuple[ScaleAnalysis, ...] = ()
     chord_candidates: tuple[ChordCandidate, ...] = ()
     position_suggestions: tuple[PositionSuggestion, ...] = ()

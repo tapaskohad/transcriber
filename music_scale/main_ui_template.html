@@ -1840,6 +1840,8 @@
       const projectState = {
         timeline: null,
         playbackSource: null,
+        analysisResults: null,
+        analysisSource: null,
         playbackStatus: {
           isPlaying: false,
           currentTime: 0,
@@ -2671,6 +2673,8 @@
         if (!timeline || timelineEvents(timeline).length === 0) {
           projectState.timeline = null;
           projectState.playbackSource = null;
+          projectState.analysisResults = null;
+          projectState.analysisSource = null;
           playbackController.stop();
           clearPlaybackHighlights();
           updateTransportControls();
@@ -3233,6 +3237,104 @@
         });
       }
 
+      function splitNoteName(noteName) {
+        const match = String(noteName || "").trim().match(/^([A-G](?:#|b)?)(-?\d+)$/i);
+        if (!match) {
+          return { note: String(noteName || ""), octave: 4 };
+        }
+        return { note: match[1].toUpperCase(), octave: Number(match[2]) };
+      }
+
+      function buildAnalysisProjectState(payload) {
+        const timeline = payload && payload.timeline && typeof payload.timeline === "object"
+          ? payload.timeline
+          : null;
+        const timelineEventList = timelineEvents(timeline);
+        if (!timeline || timelineEventList.length === 0) {
+          return null;
+        }
+
+        const sourceEvents = Array.isArray(payload.events) ? payload.events : [];
+        const sourceTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+        const generatedEvents = [];
+        const tabPositions = [];
+
+        for (let index = 0; index < timelineEventList.length; index += 1) {
+          const timelineEvent = timelineEventList[index] || {};
+          const sourceEvent = sourceEvents[index] || {};
+          const sourceTab = sourceTabs[index] || {};
+          const noteName = String(sourceEvent.note || timelineEvent.note || "");
+          const parsedNote = splitNoteName(noteName);
+          const midi = Number(
+            timelineEvent.midi !== null && timelineEvent.midi !== undefined
+              ? timelineEvent.midi
+              : sourceTab.midi
+          );
+          const fallbackEventId = "event_" + String(index + 1).padStart(6, "0");
+          const eventId = String(timelineEvent.note_event_id || sourceEvent.note_event_id || fallbackEventId);
+          generatedEvents.push({
+            event_id: eventId,
+            note: parsedNote.note,
+            octave: Number.isFinite(parsedNote.octave) ? parsedNote.octave : 4,
+            midi: Number.isFinite(midi) ? midi : 0,
+            frequency_hz: Number(sourceEvent.frequency_hz || 0),
+            start_s: Number(sourceEvent.start_s !== undefined ? sourceEvent.start_s : timelineEvent.start_s || 0),
+            end_s: Number(
+              sourceEvent.end_s !== undefined
+                ? sourceEvent.end_s
+                : Number(timelineEvent.start_s || 0) + Number(timelineEvent.duration_s || 0)
+            ),
+            source: String(timelineEvent.source || sourceEvent.source || "frontend_analysis"),
+          });
+
+          const tabNoteName = String(sourceTab.note || timelineEvent.note || noteName);
+          const parsedTabNote = splitNoteName(tabNoteName);
+          tabPositions.push({
+            position_id: String(timelineEvent.tab_position_id || "tab_" + String(index + 1).padStart(6, "0")),
+            event_id: eventId,
+            string_id: Number(timelineEvent.string !== null && timelineEvent.string !== undefined ? timelineEvent.string : sourceTab.string || 1),
+            fret: Number(timelineEvent.fret !== null && timelineEvent.fret !== undefined ? timelineEvent.fret : sourceTab.fret || 0),
+            midi: Number.isFinite(midi) ? midi : 0,
+            note: parsedTabNote.note,
+            octave: Number.isFinite(parsedTabNote.octave) ? parsedTabNote.octave : parsedNote.octave,
+            source: String(timelineEvent.source || sourceTab.source || "frontend_analysis"),
+          });
+        }
+
+        return {
+          project_id: "frontend_project",
+          selected_notes: Array.isArray(payload.pitch_classes) ? payload.pitch_classes : [],
+          generated_events: generatedEvents,
+          tab_positions: tabPositions,
+          timeline,
+          tempo: timeline.tempo || payload.tempo || undefined,
+        };
+      }
+
+      async function requestAnalysisForPayload(payload, source, setStatus) {
+        const project = buildAnalysisProjectState(payload);
+        if (!project) {
+          projectState.analysisResults = null;
+          projectState.analysisSource = null;
+          return null;
+        }
+        try {
+          const analysisPayload = await postJsonWithXhr("/api/analysis", { project_state: project });
+          if (!analysisPayload || analysisPayload.success !== true || !analysisPayload.analysis) {
+            throw new Error("Invalid analysis response.");
+          }
+          projectState.analysisResults = analysisPayload.analysis;
+          projectState.analysisSource = source;
+          return analysisPayload.analysis;
+        } catch (error) {
+          projectState.analysisResults = null;
+          projectState.analysisSource = null;
+          const message = error instanceof Error ? error.message : "Analysis failed.";
+          setStatus("Analysis failed: " + message, "warn");
+          return null;
+        }
+      }
+
       function postWavUploadWithXhr(file, { onUploadProgress, onUploadComplete } = {}) {
         return new Promise((resolve, reject) => {
           const formData = new FormData();
@@ -3603,7 +3705,10 @@
           );
           renderTransEvents(payload.events);
           loadPlaybackPayload(payload, "transcriber");
-          setTransStatus("Transcribed " + notes.length + " notes.", "ok");
+          const analysis = await requestAnalysisForPayload(payload, "transcriber", setTransStatus);
+          if (analysis) {
+            setTransStatus("Transcribed " + notes.length + " notes.", "ok");
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection error.";
           setTransStatus(message, "warn");
@@ -3828,6 +3933,8 @@
           playbackController.stop();
           projectState.timeline = null;
           projectState.playbackSource = null;
+          projectState.analysisResults = null;
+          projectState.analysisSource = null;
           clearPlaybackHighlights();
           updateTransportControls();
         }
@@ -3980,7 +4087,7 @@
             throw new Error(result && result.error ? result.error : "Failed to generate tabs.");
           }
 
-          const tabs = Array.isArray(result.tab_tokens) ? result.tab_tokens : [];
+	          const tabs = Array.isArray(result.tab_tokens) ? result.tab_tokens : [];
           renderTabTokenLine(seqEls.tabTokens, tabs, result.timeline, "sequencer");
           setOutputTabContent(
             seqEls.ascii,
@@ -3989,7 +4096,10 @@
           );
           loadPlaybackPayload(result, "sequencer");
           setSequencerExportText(buildSequencerExportText(seqEls.tabTokens.textContent, seqEls.ascii.textContent));
-          setSequencerStatus("Generated " + tabs.length + " tab positions.", "ok");
+          const analysis = await requestAnalysisForPayload(result, "sequencer", setSequencerStatus);
+          if (analysis) {
+            setSequencerStatus("Generated " + tabs.length + " tab positions.", "ok");
+          }
           clearSequencerStale();
         } catch (error) {
           const message = error instanceof Error ? error.message : "Connection error.";
