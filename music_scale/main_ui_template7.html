@@ -734,37 +734,6 @@
       padding-right: 2px;
     }
 
-    /* Compact context (Scale Finder): a single centered message replaces
-       the full section list. Hidden unless the dock root carries
-       .context-compact, which setMode() toggles based on the active mode. */
-    .analysis-dock-compact {
-      display: none;
-      justify-items: center;
-      text-align: center;
-      gap: 6px;
-      padding: 18px 4px;
-    }
-
-    .analysis-dock-compact-text {
-      margin: 0;
-      color: var(--ink-muted);
-      font-size: 0.82rem;
-      line-height: 1.55;
-      max-width: 30ch;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-compact {
-      display: grid;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-sections {
-      display: none;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-body {
-      align-content: center;
-    }
-
     .analysis-section {
       display: grid;
       gap: 8px;
@@ -832,63 +801,6 @@
       color: var(--ink-muted);
       font-size: 0.78rem;
       line-height: 1.42;
-    }
-
-    /* Populated Difficulty/Quality view. Mirrors the empty state's spacing
-       and sits in the same section slot, toggled via [hidden] by
-       renderAnalysisScoreCard() rather than any new layout mechanism. */
-    .analysis-data {
-      display: grid;
-      gap: 6px;
-    }
-
-    .analysis-score-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .analysis-score-value {
-      font-family: var(--serif);
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1;
-    }
-
-    .analysis-score-label {
-      font-family: var(--sans);
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--line-strong) 62%, transparent 38%);
-      background: linear-gradient(160deg, var(--pill-bg-top), var(--pill-bg-bottom));
-      color: var(--ink-soft);
-    }
-
-    .analysis-confidence {
-      margin: 0;
-      color: var(--ink-muted);
-      font-family: var(--mono);
-      font-size: 0.74rem;
-    }
-
-    .analysis-summary {
-      margin: 0;
-      color: var(--ink-soft);
-      font-size: 0.8rem;
-      line-height: 1.5;
-    }
-
-    /* Fingering/Warnings reuse the existing .events-box/.event-row list
-       pattern (same as Transcriber's Detected Events). This scoped
-       override only shortens it inside the dock's compact sections. */
-    .analysis-section .events-box {
-      max-height: 190px;
     }
 
     .block-title {
@@ -2018,14 +1930,6 @@
         </div>
 
         <div class="analysis-dock-body">
-          <div class="analysis-dock-compact">
-            <p class="analysis-dock-compact-text">
-              Analysis is available for Melody Transcriber and Tab Sequencer.
-              Generate or edit a playable sequence to begin.
-            </p>
-          </div>
-
-          <div class="analysis-dock-sections">
           <section class="analysis-section">
             <h3 class="analysis-section-title">Analysis</h3>
             <p id="analysisOverviewStatus" class="status">No analysis available.</p>
@@ -2037,16 +1941,8 @@
               <span class="analysis-mark" aria-hidden="true">D</span>
               <h3 class="analysis-section-title">Difficulty</h3>
             </div>
-            <div id="difficultyEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Difficulty scoring will appear here once analysis runs.</p>
-            </div>
-            <div id="difficultyData" class="analysis-data" hidden>
-              <div class="analysis-score-row">
-                <span id="difficultyScoreValue" class="analysis-score-value"></span>
-                <span id="difficultyScoreLabel" class="analysis-score-label"></span>
-              </div>
-              <p id="difficultyConfidence" class="analysis-confidence" hidden></p>
-              <p id="difficultySummary" class="analysis-summary" hidden></p>
             </div>
           </section>
 
@@ -2055,16 +1951,8 @@
               <span class="analysis-mark" aria-hidden="true">Q</span>
               <h3 class="analysis-section-title">Quality</h3>
             </div>
-            <div id="qualityEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Quality scoring will appear here once analysis runs.</p>
-            </div>
-            <div id="qualityData" class="analysis-data" hidden>
-              <div class="analysis-score-row">
-                <span id="qualityScoreValue" class="analysis-score-value"></span>
-                <span id="qualityScoreLabel" class="analysis-score-label"></span>
-              </div>
-              <p id="qualityConfidence" class="analysis-confidence" hidden></p>
-              <p id="qualitySummary" class="analysis-summary" hidden></p>
             </div>
           </section>
 
@@ -2073,10 +1961,9 @@
               <span class="analysis-mark" aria-hidden="true">F</span>
               <h3 class="analysis-section-title">Fingering</h3>
             </div>
-            <div id="fingeringEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Finger assignments will appear here once analysis runs.</p>
             </div>
-            <div id="fingeringData" class="events-box" hidden></div>
           </section>
 
           <section class="analysis-section">
@@ -2084,13 +1971,9 @@
               <span class="analysis-mark" aria-hidden="true">W</span>
               <h3 class="analysis-section-title">Warnings</h3>
             </div>
-            <div id="warningsEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Stretch and position-shift warnings will appear here.</p>
             </div>
-            <div id="warningsNoneState" class="analysis-empty-state" hidden>
-              <p>No stretch or position-shift warnings detected.</p>
-            </div>
-            <div id="warningsData" class="events-box" hidden></div>
           </section>
 
           <section class="analysis-section">
@@ -2112,7 +1995,6 @@
               <p>Recommendations will appear here once analysis runs.</p>
             </div>
           </section>
-          </div>
         </div>
       </div>
     </aside>
@@ -2174,35 +2056,6 @@
         expandBtn: document.getElementById("analysisDockExpandBtn"),
       };
       let analysisDockCollapsed = false;
-
-      const analysisDifficultyEls = {
-        empty: document.getElementById("difficultyEmptyState"),
-        data: document.getElementById("difficultyData"),
-        value: document.getElementById("difficultyScoreValue"),
-        label: document.getElementById("difficultyScoreLabel"),
-        confidence: document.getElementById("difficultyConfidence"),
-        summary: document.getElementById("difficultySummary"),
-      };
-
-      const analysisQualityEls = {
-        empty: document.getElementById("qualityEmptyState"),
-        data: document.getElementById("qualityData"),
-        value: document.getElementById("qualityScoreValue"),
-        label: document.getElementById("qualityScoreLabel"),
-        confidence: document.getElementById("qualityConfidence"),
-        summary: document.getElementById("qualitySummary"),
-      };
-
-      const analysisFingeringEls = {
-        empty: document.getElementById("fingeringEmptyState"),
-        data: document.getElementById("fingeringData"),
-      };
-
-      const analysisWarningsEls = {
-        empty: document.getElementById("warningsEmptyState"),
-        none: document.getElementById("warningsNoneState"),
-        data: document.getElementById("warningsData"),
-      };
 
       const transportEls = {
         playBtn: document.getElementById("playbackPlayBtn"),
@@ -2879,7 +2732,6 @@
         for (const button of modeButtons) {
           button.classList.toggle("active", button.dataset.mode === safe);
         }
-        analysisDockEls.root.classList.toggle("context-compact", safe === "scale");
 
         if (!fromHistory) {
           const path = MODE_TO_PATH[safe] || "/";
@@ -2897,267 +2749,6 @@
         if (analysisDockCollapsed) {
           analysisDockEls.expandBtn.focus();
         }
-      }
-
-      // Formats a backend-provided number for display only (rounds to the
-      // same 2-decimal precision the backend itself already rounds to).
-      // Returns null if the value isn't a real number, so callers can tell
-      // "not provided" apart from "zero" and fail gracefully.
-      function formatAnalysisNumber(value) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          return null;
-        }
-        return String(Math.round(numeric * 100) / 100);
-      }
-
-      // Reads projectState.analysisResults.performance.difficulty as-is.
-      // No thresholds, weights, or scores are computed here — every value
-      // is taken directly from the existing DifficultyScore fields.
-      function readDifficultyView(analysisResults) {
-        const difficulty = analysisResults && analysisResults.performance
-          ? analysisResults.performance.difficulty
-          : null;
-        if (!difficulty) {
-          return null;
-        }
-        const rawScore = difficulty.overall_score !== undefined && difficulty.overall_score !== null
-          ? difficulty.overall_score
-          : difficulty.overall;
-        const score = formatAnalysisNumber(rawScore);
-        if (score === null) {
-          return null;
-        }
-        const level = difficulty.difficulty_level || difficulty.label || "";
-        const summary = typeof difficulty.reason_summary === "string" ? difficulty.reason_summary : "";
-        return {
-          score: score,
-          level: level || null,
-          confidence: formatAnalysisNumber(difficulty.confidence),
-          summary: summary || null,
-        };
-      }
-
-      // Reads projectState.analysisResults.quality as-is. Same rule: no
-      // computed values, only existing QualityReport fields formatted.
-      function readQualityView(analysisResults) {
-        const quality = analysisResults ? analysisResults.quality : null;
-        if (!quality) {
-          return null;
-        }
-        const rawScore = quality.overall_quality_score !== undefined && quality.overall_quality_score !== null
-          ? quality.overall_quality_score
-          : quality.score;
-        const score = formatAnalysisNumber(rawScore);
-        if (score === null) {
-          return null;
-        }
-        const level = typeof quality.quality_level === "string" ? quality.quality_level : "";
-        const summary = typeof quality.summary === "string" ? quality.summary : "";
-        return {
-          score: score,
-          level: level || null,
-          confidence: formatAnalysisNumber(quality.confidence),
-          summary: summary || null,
-        };
-      }
-
-      // Shared renderer for both score cards. A missing/invalid score
-      // falls back to the section's existing empty state rather than
-      // showing a fabricated placeholder. Optional fields (label,
-      // confidence, summary) are individually hidden when absent.
-      function renderAnalysisScoreCard(refs, view) {
-        if (!view) {
-          refs.data.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        refs.value.textContent = view.score;
-        refs.label.textContent = view.level || "";
-        refs.label.hidden = !view.level;
-        refs.confidence.textContent = view.confidence !== null ? "Confidence " + view.confidence : "";
-        refs.confidence.hidden = view.confidence === null;
-        refs.summary.textContent = view.summary || "";
-        refs.summary.hidden = !view.summary;
-        refs.empty.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      // True only for a genuine, present number — used instead of bare
-      // Number(x) so a missing/null backend field (e.g. an unresolved
-      // string/fret) is never coerced into a fabricated "0".
-      function isFiniteNumber(value) {
-        return typeof value === "number" && Number.isFinite(value);
-      }
-
-      // FingerAssignment doesn't carry string/fret itself — those live on
-      // the TimelineEvent it references. projectState.timeline is always
-      // loaded before analysisResults is set (see loadPlaybackPayload
-      // calls preceding requestAnalysisForPayload), so this is a same-data
-      // lookup by ID, not a computed value.
-      function buildTimelineEventIndex(timeline) {
-        const map = new Map();
-        for (const event of timelineEvents(timeline)) {
-          if (event && typeof event.timeline_event_id === "string") {
-            map.set(event.timeline_event_id, event);
-          }
-        }
-        return map;
-      }
-
-      function formatFingerLabel(assignment) {
-        if (isFiniteNumber(assignment.finger) && assignment.finger >= 1 && assignment.finger <= 4) {
-          return "Finger " + assignment.finger;
-        }
-        if (assignment.reason === "open_string") {
-          return "Open string";
-        }
-        if (typeof assignment.reason === "string" && assignment.reason) {
-          return assignment.reason.replace(/_/g, " ");
-        }
-        return "No finger";
-      }
-
-      function formatPositionLabel(assignment) {
-        return isFiniteNumber(assignment.position_fret) ? "Position " + assignment.position_fret : null;
-      }
-
-      function buildFingeringRowText(assignment, eventIndex) {
-        const event = eventIndex.get(assignment.timeline_event_id) || null;
-        const parts = [];
-        if (event && isFiniteNumber(event.string)) {
-          parts.push("String " + event.string);
-        }
-        if (event && isFiniteNumber(event.fret)) {
-          parts.push("Fret " + event.fret);
-        }
-        parts.push(formatFingerLabel(assignment));
-        const positionLabel = formatPositionLabel(assignment);
-        if (positionLabel) {
-          parts.push(positionLabel);
-        }
-        return parts.join(" | ");
-      }
-
-      function renderAnalysisRowList(container, rowTexts) {
-        container.innerHTML = "";
-        for (const text of rowTexts) {
-          const row = document.createElement("div");
-          row.className = "event-row";
-          row.textContent = text;
-          container.appendChild(row);
-        }
-      }
-
-      // Fingering: one row per existing backend FingerAssignment. No
-      // finger/position values are computed — only read and formatted.
-      function renderFingeringSection(refs, analysisResults) {
-        const fingering = analysisResults ? analysisResults.fingering : null;
-        const assignments = fingering && Array.isArray(fingering.assignments) ? fingering.assignments : [];
-        if (!fingering || assignments.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = false;
-          return;
-        }
-        const eventIndex = buildTimelineEventIndex(projectState.timeline);
-        renderAnalysisRowList(
-          refs.data,
-          assignments.map((assignment) => buildFingeringRowText(assignment, eventIndex))
-        );
-        refs.empty.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      function formatSeverityLabel(severity) {
-        if (typeof severity !== "string" || !severity) {
-          return null;
-        }
-        return severity.charAt(0).toUpperCase() + severity.slice(1);
-      }
-
-      // StretchIssue already ships a backend "message" — used verbatim,
-      // never rewritten. Severity is only capitalized, not reinterpreted.
-      function buildStretchRowText(issue, eventIndex) {
-        const parts = [];
-        const severityLabel = formatSeverityLabel(issue.severity);
-        if (severityLabel) {
-          parts.push(severityLabel);
-        }
-        if (typeof issue.message === "string" && issue.message) {
-          parts.push(issue.message);
-        }
-        const noteNames = (Array.isArray(issue.timeline_event_ids) ? issue.timeline_event_ids : [])
-          .map((id) => eventIndex.get(id))
-          .filter(Boolean)
-          .map((event) => event.note);
-        if (noteNames.length > 0) {
-          parts.push(noteNames.join(" -> "));
-        }
-        return parts.join(" | ");
-      }
-
-      // PositionShift has no message/severity field on the backend, so
-      // this is a plain factual label built only from its own existing
-      // fields (from/to position fret, distance) — no assessment implied.
-      function buildPositionShiftRowText(shift, eventIndex) {
-        const parts = ["Position shift"];
-        if (isFiniteNumber(shift.from_position_fret) && isFiniteNumber(shift.to_position_fret)) {
-          parts.push("Fret " + shift.from_position_fret + " -> " + shift.to_position_fret);
-        }
-        if (isFiniteNumber(shift.distance)) {
-          parts.push("Distance " + shift.distance);
-        }
-        const fromEvent = eventIndex.get(shift.from_timeline_event_id);
-        const toEvent = eventIndex.get(shift.to_timeline_event_id);
-        const noteNames = [fromEvent, toEvent].filter(Boolean).map((event) => event.note);
-        if (noteNames.length > 0) {
-          parts.push(noteNames.join(" -> "));
-        }
-        return parts.join(" | ");
-      }
-
-      // Warnings has three states: no analysis yet (existing placeholder),
-      // analysis exists with zero stretch issues/position shifts (explicit
-      // "no warnings" message — never fabricated), or a populated list.
-      function renderWarningsSection(refs, analysisResults) {
-        const fingering = analysisResults ? analysisResults.fingering : null;
-        if (!fingering) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.none.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        const stretchIssues = Array.isArray(fingering.stretch_issues) ? fingering.stretch_issues : [];
-        const positionShifts = Array.isArray(fingering.position_shifts) ? fingering.position_shifts : [];
-        if (stretchIssues.length === 0 && positionShifts.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = true;
-          refs.none.hidden = false;
-          return;
-        }
-        const eventIndex = buildTimelineEventIndex(projectState.timeline);
-        const rowTexts = [
-          ...stretchIssues.map((issue) => buildStretchRowText(issue, eventIndex)),
-          ...positionShifts.map((shift) => buildPositionShiftRowText(shift, eventIndex)),
-        ];
-        renderAnalysisRowList(refs.data, rowTexts);
-        refs.empty.hidden = true;
-        refs.none.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      // Single entry point that keeps the dock's Difficulty, Quality,
-      // Fingering, and Warnings sections in sync with
-      // projectState.analysisResults. Passing null restores every
-      // section's existing empty state.
-      function updateAnalysisDock(analysisResults) {
-        renderAnalysisScoreCard(analysisDifficultyEls, readDifficultyView(analysisResults));
-        renderAnalysisScoreCard(analysisQualityEls, readQualityView(analysisResults));
-        renderFingeringSection(analysisFingeringEls, analysisResults);
-        renderWarningsSection(analysisWarningsEls, analysisResults);
       }
 
       function escapeDataValue(value) {
@@ -3396,7 +2987,6 @@
           projectState.playbackSource = null;
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           playbackController.stop();
           clearPlaybackHighlights();
           updateTransportControls();
@@ -4038,7 +3628,6 @@
         if (!project) {
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           return null;
         }
         try {
@@ -4048,12 +3637,10 @@
           }
           projectState.analysisResults = analysisPayload.analysis;
           projectState.analysisSource = source;
-          updateAnalysisDock(projectState.analysisResults);
           return analysisPayload.analysis;
         } catch (error) {
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           const message = error instanceof Error ? error.message : "Analysis failed.";
           setStatus("Analysis failed: " + message, "warn");
           return null;
@@ -4660,7 +4247,6 @@
           projectState.playbackSource = null;
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           clearPlaybackHighlights();
           updateTransportControls();
         }

@@ -190,7 +190,6 @@
       height: calc(100vh - 28px);
       margin: 14px auto;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
       grid-template-rows: auto minmax(0, 1fr);
       gap: 14px;
       position: relative;
@@ -235,7 +234,6 @@
     }
 
     .topbar {
-      grid-column: 1 / -1;
       padding: 16px 18px;
       display: grid;
       grid-template-columns: minmax(230px, 1.2fr) auto auto;
@@ -635,260 +633,6 @@
     #mode-sequencer .panel-output {
       grid-column: 1;
       grid-row: 2;
-    }
-
-    /* Analysis dock: a permanent inspector beside the active mode, not a
-       mode itself. Placed in .app's second grid column (see .app above),
-       so it persists across all three modes without any of them knowing
-       it exists. Width is intentionally set here (not on .app) so the
-       auto-sized grid column just follows whichever state is active. */
-    .analysis-dock {
-      grid-column: 2;
-      grid-row: 2;
-      width: 320px;
-      min-height: 0;
-      display: grid;
-      transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .analysis-dock.collapsed {
-      width: 54px;
-    }
-
-    .analysis-dock-panel {
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 10px;
-      min-height: 0;
-      height: 100%;
-    }
-
-    .analysis-dock.collapsed .analysis-dock-panel {
-      display: none;
-    }
-
-    .analysis-dock-rail {
-      display: none;
-      height: 100%;
-      padding: 0;
-    }
-
-    .analysis-dock.collapsed .analysis-dock-rail {
-      display: grid;
-    }
-
-    .analysis-rail-btn {
-      width: 100%;
-      height: 100%;
-      min-height: 160px;
-      border: 0;
-      background: transparent;
-      cursor: pointer;
-      display: grid;
-      place-items: center;
-      padding: 14px 0;
-      border-radius: 14px;
-      transition: background 0.15s ease;
-    }
-
-    .analysis-rail-btn:hover {
-      background: color-mix(in srgb, var(--accent) 12%, transparent 88%);
-    }
-
-    .analysis-rail-btn:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
-
-    .analysis-rail-label {
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      font-family: var(--serif);
-      font-size: 0.92rem;
-      letter-spacing: 0.07em;
-      color: var(--title-ink);
-      white-space: nowrap;
-    }
-
-    .analysis-dock-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .analysis-dock-toggle {
-      flex: 0 0 auto;
-      min-height: 34px;
-      padding: 0 12px;
-      font-size: 0.78rem;
-    }
-
-    .analysis-dock-body {
-      overflow: auto;
-      min-height: 0;
-      display: grid;
-      align-content: start;
-      gap: 12px;
-      padding-right: 2px;
-    }
-
-    /* Compact context (Scale Finder): a single centered message replaces
-       the full section list. Hidden unless the dock root carries
-       .context-compact, which setMode() toggles based on the active mode. */
-    .analysis-dock-compact {
-      display: none;
-      justify-items: center;
-      text-align: center;
-      gap: 6px;
-      padding: 18px 4px;
-    }
-
-    .analysis-dock-compact-text {
-      margin: 0;
-      color: var(--ink-muted);
-      font-size: 0.82rem;
-      line-height: 1.55;
-      max-width: 30ch;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-compact {
-      display: grid;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-sections {
-      display: none;
-    }
-
-    .analysis-dock.context-compact .analysis-dock-body {
-      align-content: center;
-    }
-
-    .analysis-section {
-      display: grid;
-      gap: 8px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .analysis-section:last-child {
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-
-    .analysis-section-head {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-    }
-
-    .analysis-section-title {
-      margin: 0;
-      font-family: var(--serif);
-      font-size: 0.98rem;
-      letter-spacing: 0.01em;
-      color: var(--ink);
-    }
-
-    .analysis-mark {
-      flex: 0 0 auto;
-      width: 26px;
-      height: 26px;
-      border-radius: 999px;
-      display: grid;
-      place-items: center;
-      border: 1px solid color-mix(in srgb, var(--line-strong) 62%, transparent 38%);
-      background: linear-gradient(160deg, var(--pill-bg-top), var(--pill-bg-bottom));
-      color: var(--ink-soft);
-      font-family: var(--serif);
-      font-size: 0.74rem;
-      font-weight: 700;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    }
-
-    .analysis-empty-note {
-      margin: 0;
-      color: var(--ink-muted);
-      font-size: 0.79rem;
-      line-height: 1.5;
-    }
-
-    .analysis-empty-state {
-      display: grid;
-      justify-items: center;
-      align-content: center;
-      gap: 6px;
-      min-height: 74px;
-      padding: 12px 10px;
-      border: 1px dashed color-mix(in srgb, var(--line-strong) 55%, transparent 45%);
-      border-radius: 12px;
-      background: color-mix(in srgb, var(--panel) 92%, transparent 8%);
-      text-align: center;
-    }
-
-    .analysis-empty-state p {
-      margin: 0;
-      color: var(--ink-muted);
-      font-size: 0.78rem;
-      line-height: 1.42;
-    }
-
-    /* Populated Difficulty/Quality view. Mirrors the empty state's spacing
-       and sits in the same section slot, toggled via [hidden] by
-       renderAnalysisScoreCard() rather than any new layout mechanism. */
-    .analysis-data {
-      display: grid;
-      gap: 6px;
-    }
-
-    .analysis-score-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .analysis-score-value {
-      font-family: var(--serif);
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1;
-    }
-
-    .analysis-score-label {
-      font-family: var(--sans);
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--line-strong) 62%, transparent 38%);
-      background: linear-gradient(160deg, var(--pill-bg-top), var(--pill-bg-bottom));
-      color: var(--ink-soft);
-    }
-
-    .analysis-confidence {
-      margin: 0;
-      color: var(--ink-muted);
-      font-family: var(--mono);
-      font-size: 0.74rem;
-    }
-
-    .analysis-summary {
-      margin: 0;
-      color: var(--ink-soft);
-      font-size: 0.8rem;
-      line-height: 1.5;
-    }
-
-    /* Fingering/Warnings reuse the existing .events-box/.event-row list
-       pattern (same as Transcriber's Detected Events). This scoped
-       override only shortens it inside the dock's compact sections. */
-    .analysis-section .events-box {
-      max-height: 190px;
     }
 
     .block-title {
@@ -1727,30 +1471,6 @@
       .note-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
-
-      .app {
-        grid-template-columns: 1fr;
-      }
-
-      .analysis-dock {
-        grid-column: 1;
-        grid-row: auto;
-        width: 100%;
-      }
-
-      .analysis-dock-panel {
-        max-height: 320px;
-      }
-
-      .analysis-rail-btn {
-        min-height: 44px;
-        padding: 8px 0;
-      }
-
-      .analysis-rail-label {
-        writing-mode: horizontal-tb;
-        transform: none;
-      }
     }
 
     @media (min-width: 1600px) and (min-height: 820px) {
@@ -1983,139 +1703,6 @@
         <pre id="seqAscii" class="output-tab is-empty">No tabs generated.</pre>
       </section>
     </section>
-
-    <aside id="analysisDock" class="analysis-dock" aria-label="Analysis">
-      <div class="analysis-dock-rail">
-        <button
-          id="analysisDockExpandBtn"
-          class="analysis-rail-btn"
-          type="button"
-          aria-label="Expand Analysis dock"
-          title="Expand Analysis dock"
-          aria-expanded="false"
-          aria-controls="analysisDockPanel"
-        >
-          <span class="analysis-rail-label">Analysis</span>
-        </button>
-      </div>
-
-      <div id="analysisDockPanel" class="analysis-dock-panel panel">
-        <div class="analysis-dock-head">
-          <div class="panel-head">
-            <h2 class="block-title">Analysis</h2>
-            <p class="block-subtitle">Contextual fingering, difficulty, and quality analysis for the active tab sequence.</p>
-          </div>
-          <button
-            id="analysisDockCollapseBtn"
-            class="btn analysis-dock-toggle"
-            type="button"
-            aria-label="Collapse Analysis dock"
-            title="Collapse Analysis dock"
-            aria-expanded="true"
-          >
-            Collapse
-          </button>
-        </div>
-
-        <div class="analysis-dock-body">
-          <div class="analysis-dock-compact">
-            <p class="analysis-dock-compact-text">
-              Analysis is available for Melody Transcriber and Tab Sequencer.
-              Generate or edit a playable sequence to begin.
-            </p>
-          </div>
-
-          <div class="analysis-dock-sections">
-          <section class="analysis-section">
-            <h3 class="analysis-section-title">Analysis</h3>
-            <p id="analysisOverviewStatus" class="status">No analysis available.</p>
-            <p class="analysis-empty-note">Generate tabs in the Transcriber or Tab Sequencer to see analysis here.</p>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">D</span>
-              <h3 class="analysis-section-title">Difficulty</h3>
-            </div>
-            <div id="difficultyEmptyState" class="analysis-empty-state">
-              <p>Difficulty scoring will appear here once analysis runs.</p>
-            </div>
-            <div id="difficultyData" class="analysis-data" hidden>
-              <div class="analysis-score-row">
-                <span id="difficultyScoreValue" class="analysis-score-value"></span>
-                <span id="difficultyScoreLabel" class="analysis-score-label"></span>
-              </div>
-              <p id="difficultyConfidence" class="analysis-confidence" hidden></p>
-              <p id="difficultySummary" class="analysis-summary" hidden></p>
-            </div>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">Q</span>
-              <h3 class="analysis-section-title">Quality</h3>
-            </div>
-            <div id="qualityEmptyState" class="analysis-empty-state">
-              <p>Quality scoring will appear here once analysis runs.</p>
-            </div>
-            <div id="qualityData" class="analysis-data" hidden>
-              <div class="analysis-score-row">
-                <span id="qualityScoreValue" class="analysis-score-value"></span>
-                <span id="qualityScoreLabel" class="analysis-score-label"></span>
-              </div>
-              <p id="qualityConfidence" class="analysis-confidence" hidden></p>
-              <p id="qualitySummary" class="analysis-summary" hidden></p>
-            </div>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">F</span>
-              <h3 class="analysis-section-title">Fingering</h3>
-            </div>
-            <div id="fingeringEmptyState" class="analysis-empty-state">
-              <p>Finger assignments will appear here once analysis runs.</p>
-            </div>
-            <div id="fingeringData" class="events-box" hidden></div>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">W</span>
-              <h3 class="analysis-section-title">Warnings</h3>
-            </div>
-            <div id="warningsEmptyState" class="analysis-empty-state">
-              <p>Stretch and position-shift warnings will appear here.</p>
-            </div>
-            <div id="warningsNoneState" class="analysis-empty-state" hidden>
-              <p>No stretch or position-shift warnings detected.</p>
-            </div>
-            <div id="warningsData" class="events-box" hidden></div>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">A</span>
-              <h3 class="analysis-section-title">Alternates</h3>
-            </div>
-            <div class="analysis-empty-state">
-              <p>Alternate fingerings will appear here once analysis runs.</p>
-            </div>
-          </section>
-
-          <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">R</span>
-              <h3 class="analysis-section-title">Recommendations</h3>
-            </div>
-            <div class="analysis-empty-state">
-              <p>Recommendations will appear here once analysis runs.</p>
-            </div>
-          </section>
-          </div>
-        </div>
-      </div>
-    </aside>
   </main>
 
   <script>
@@ -2166,42 +1753,6 @@
         scale: document.getElementById("mode-scale"),
         transcriber: document.getElementById("mode-transcriber"),
         sequencer: document.getElementById("mode-sequencer"),
-      };
-
-      const analysisDockEls = {
-        root: document.getElementById("analysisDock"),
-        collapseBtn: document.getElementById("analysisDockCollapseBtn"),
-        expandBtn: document.getElementById("analysisDockExpandBtn"),
-      };
-      let analysisDockCollapsed = false;
-
-      const analysisDifficultyEls = {
-        empty: document.getElementById("difficultyEmptyState"),
-        data: document.getElementById("difficultyData"),
-        value: document.getElementById("difficultyScoreValue"),
-        label: document.getElementById("difficultyScoreLabel"),
-        confidence: document.getElementById("difficultyConfidence"),
-        summary: document.getElementById("difficultySummary"),
-      };
-
-      const analysisQualityEls = {
-        empty: document.getElementById("qualityEmptyState"),
-        data: document.getElementById("qualityData"),
-        value: document.getElementById("qualityScoreValue"),
-        label: document.getElementById("qualityScoreLabel"),
-        confidence: document.getElementById("qualityConfidence"),
-        summary: document.getElementById("qualitySummary"),
-      };
-
-      const analysisFingeringEls = {
-        empty: document.getElementById("fingeringEmptyState"),
-        data: document.getElementById("fingeringData"),
-      };
-
-      const analysisWarningsEls = {
-        empty: document.getElementById("warningsEmptyState"),
-        none: document.getElementById("warningsNoneState"),
-        data: document.getElementById("warningsData"),
       };
 
       const transportEls = {
@@ -2879,7 +2430,6 @@
         for (const button of modeButtons) {
           button.classList.toggle("active", button.dataset.mode === safe);
         }
-        analysisDockEls.root.classList.toggle("context-compact", safe === "scale");
 
         if (!fromHistory) {
           const path = MODE_TO_PATH[safe] || "/";
@@ -2887,277 +2437,6 @@
             history.replaceState({ mode: safe }, "", path);
           }
         }
-      }
-
-      function setAnalysisDockCollapsed(collapsed) {
-        analysisDockCollapsed = Boolean(collapsed);
-        analysisDockEls.root.classList.toggle("collapsed", analysisDockCollapsed);
-        analysisDockEls.collapseBtn.setAttribute("aria-expanded", analysisDockCollapsed ? "false" : "true");
-        analysisDockEls.expandBtn.setAttribute("aria-expanded", analysisDockCollapsed ? "false" : "true");
-        if (analysisDockCollapsed) {
-          analysisDockEls.expandBtn.focus();
-        }
-      }
-
-      // Formats a backend-provided number for display only (rounds to the
-      // same 2-decimal precision the backend itself already rounds to).
-      // Returns null if the value isn't a real number, so callers can tell
-      // "not provided" apart from "zero" and fail gracefully.
-      function formatAnalysisNumber(value) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          return null;
-        }
-        return String(Math.round(numeric * 100) / 100);
-      }
-
-      // Reads projectState.analysisResults.performance.difficulty as-is.
-      // No thresholds, weights, or scores are computed here — every value
-      // is taken directly from the existing DifficultyScore fields.
-      function readDifficultyView(analysisResults) {
-        const difficulty = analysisResults && analysisResults.performance
-          ? analysisResults.performance.difficulty
-          : null;
-        if (!difficulty) {
-          return null;
-        }
-        const rawScore = difficulty.overall_score !== undefined && difficulty.overall_score !== null
-          ? difficulty.overall_score
-          : difficulty.overall;
-        const score = formatAnalysisNumber(rawScore);
-        if (score === null) {
-          return null;
-        }
-        const level = difficulty.difficulty_level || difficulty.label || "";
-        const summary = typeof difficulty.reason_summary === "string" ? difficulty.reason_summary : "";
-        return {
-          score: score,
-          level: level || null,
-          confidence: formatAnalysisNumber(difficulty.confidence),
-          summary: summary || null,
-        };
-      }
-
-      // Reads projectState.analysisResults.quality as-is. Same rule: no
-      // computed values, only existing QualityReport fields formatted.
-      function readQualityView(analysisResults) {
-        const quality = analysisResults ? analysisResults.quality : null;
-        if (!quality) {
-          return null;
-        }
-        const rawScore = quality.overall_quality_score !== undefined && quality.overall_quality_score !== null
-          ? quality.overall_quality_score
-          : quality.score;
-        const score = formatAnalysisNumber(rawScore);
-        if (score === null) {
-          return null;
-        }
-        const level = typeof quality.quality_level === "string" ? quality.quality_level : "";
-        const summary = typeof quality.summary === "string" ? quality.summary : "";
-        return {
-          score: score,
-          level: level || null,
-          confidence: formatAnalysisNumber(quality.confidence),
-          summary: summary || null,
-        };
-      }
-
-      // Shared renderer for both score cards. A missing/invalid score
-      // falls back to the section's existing empty state rather than
-      // showing a fabricated placeholder. Optional fields (label,
-      // confidence, summary) are individually hidden when absent.
-      function renderAnalysisScoreCard(refs, view) {
-        if (!view) {
-          refs.data.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        refs.value.textContent = view.score;
-        refs.label.textContent = view.level || "";
-        refs.label.hidden = !view.level;
-        refs.confidence.textContent = view.confidence !== null ? "Confidence " + view.confidence : "";
-        refs.confidence.hidden = view.confidence === null;
-        refs.summary.textContent = view.summary || "";
-        refs.summary.hidden = !view.summary;
-        refs.empty.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      // True only for a genuine, present number — used instead of bare
-      // Number(x) so a missing/null backend field (e.g. an unresolved
-      // string/fret) is never coerced into a fabricated "0".
-      function isFiniteNumber(value) {
-        return typeof value === "number" && Number.isFinite(value);
-      }
-
-      // FingerAssignment doesn't carry string/fret itself — those live on
-      // the TimelineEvent it references. projectState.timeline is always
-      // loaded before analysisResults is set (see loadPlaybackPayload
-      // calls preceding requestAnalysisForPayload), so this is a same-data
-      // lookup by ID, not a computed value.
-      function buildTimelineEventIndex(timeline) {
-        const map = new Map();
-        for (const event of timelineEvents(timeline)) {
-          if (event && typeof event.timeline_event_id === "string") {
-            map.set(event.timeline_event_id, event);
-          }
-        }
-        return map;
-      }
-
-      function formatFingerLabel(assignment) {
-        if (isFiniteNumber(assignment.finger) && assignment.finger >= 1 && assignment.finger <= 4) {
-          return "Finger " + assignment.finger;
-        }
-        if (assignment.reason === "open_string") {
-          return "Open string";
-        }
-        if (typeof assignment.reason === "string" && assignment.reason) {
-          return assignment.reason.replace(/_/g, " ");
-        }
-        return "No finger";
-      }
-
-      function formatPositionLabel(assignment) {
-        return isFiniteNumber(assignment.position_fret) ? "Position " + assignment.position_fret : null;
-      }
-
-      function buildFingeringRowText(assignment, eventIndex) {
-        const event = eventIndex.get(assignment.timeline_event_id) || null;
-        const parts = [];
-        if (event && isFiniteNumber(event.string)) {
-          parts.push("String " + event.string);
-        }
-        if (event && isFiniteNumber(event.fret)) {
-          parts.push("Fret " + event.fret);
-        }
-        parts.push(formatFingerLabel(assignment));
-        const positionLabel = formatPositionLabel(assignment);
-        if (positionLabel) {
-          parts.push(positionLabel);
-        }
-        return parts.join(" | ");
-      }
-
-      function renderAnalysisRowList(container, rowTexts) {
-        container.innerHTML = "";
-        for (const text of rowTexts) {
-          const row = document.createElement("div");
-          row.className = "event-row";
-          row.textContent = text;
-          container.appendChild(row);
-        }
-      }
-
-      // Fingering: one row per existing backend FingerAssignment. No
-      // finger/position values are computed — only read and formatted.
-      function renderFingeringSection(refs, analysisResults) {
-        const fingering = analysisResults ? analysisResults.fingering : null;
-        const assignments = fingering && Array.isArray(fingering.assignments) ? fingering.assignments : [];
-        if (!fingering || assignments.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = false;
-          return;
-        }
-        const eventIndex = buildTimelineEventIndex(projectState.timeline);
-        renderAnalysisRowList(
-          refs.data,
-          assignments.map((assignment) => buildFingeringRowText(assignment, eventIndex))
-        );
-        refs.empty.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      function formatSeverityLabel(severity) {
-        if (typeof severity !== "string" || !severity) {
-          return null;
-        }
-        return severity.charAt(0).toUpperCase() + severity.slice(1);
-      }
-
-      // StretchIssue already ships a backend "message" — used verbatim,
-      // never rewritten. Severity is only capitalized, not reinterpreted.
-      function buildStretchRowText(issue, eventIndex) {
-        const parts = [];
-        const severityLabel = formatSeverityLabel(issue.severity);
-        if (severityLabel) {
-          parts.push(severityLabel);
-        }
-        if (typeof issue.message === "string" && issue.message) {
-          parts.push(issue.message);
-        }
-        const noteNames = (Array.isArray(issue.timeline_event_ids) ? issue.timeline_event_ids : [])
-          .map((id) => eventIndex.get(id))
-          .filter(Boolean)
-          .map((event) => event.note);
-        if (noteNames.length > 0) {
-          parts.push(noteNames.join(" -> "));
-        }
-        return parts.join(" | ");
-      }
-
-      // PositionShift has no message/severity field on the backend, so
-      // this is a plain factual label built only from its own existing
-      // fields (from/to position fret, distance) — no assessment implied.
-      function buildPositionShiftRowText(shift, eventIndex) {
-        const parts = ["Position shift"];
-        if (isFiniteNumber(shift.from_position_fret) && isFiniteNumber(shift.to_position_fret)) {
-          parts.push("Fret " + shift.from_position_fret + " -> " + shift.to_position_fret);
-        }
-        if (isFiniteNumber(shift.distance)) {
-          parts.push("Distance " + shift.distance);
-        }
-        const fromEvent = eventIndex.get(shift.from_timeline_event_id);
-        const toEvent = eventIndex.get(shift.to_timeline_event_id);
-        const noteNames = [fromEvent, toEvent].filter(Boolean).map((event) => event.note);
-        if (noteNames.length > 0) {
-          parts.push(noteNames.join(" -> "));
-        }
-        return parts.join(" | ");
-      }
-
-      // Warnings has three states: no analysis yet (existing placeholder),
-      // analysis exists with zero stretch issues/position shifts (explicit
-      // "no warnings" message — never fabricated), or a populated list.
-      function renderWarningsSection(refs, analysisResults) {
-        const fingering = analysisResults ? analysisResults.fingering : null;
-        if (!fingering) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.none.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        const stretchIssues = Array.isArray(fingering.stretch_issues) ? fingering.stretch_issues : [];
-        const positionShifts = Array.isArray(fingering.position_shifts) ? fingering.position_shifts : [];
-        if (stretchIssues.length === 0 && positionShifts.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = true;
-          refs.none.hidden = false;
-          return;
-        }
-        const eventIndex = buildTimelineEventIndex(projectState.timeline);
-        const rowTexts = [
-          ...stretchIssues.map((issue) => buildStretchRowText(issue, eventIndex)),
-          ...positionShifts.map((shift) => buildPositionShiftRowText(shift, eventIndex)),
-        ];
-        renderAnalysisRowList(refs.data, rowTexts);
-        refs.empty.hidden = true;
-        refs.none.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      // Single entry point that keeps the dock's Difficulty, Quality,
-      // Fingering, and Warnings sections in sync with
-      // projectState.analysisResults. Passing null restores every
-      // section's existing empty state.
-      function updateAnalysisDock(analysisResults) {
-        renderAnalysisScoreCard(analysisDifficultyEls, readDifficultyView(analysisResults));
-        renderAnalysisScoreCard(analysisQualityEls, readQualityView(analysisResults));
-        renderFingeringSection(analysisFingeringEls, analysisResults);
-        renderWarningsSection(analysisWarningsEls, analysisResults);
       }
 
       function escapeDataValue(value) {
@@ -3396,7 +2675,6 @@
           projectState.playbackSource = null;
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           playbackController.stop();
           clearPlaybackHighlights();
           updateTransportControls();
@@ -4038,7 +3316,6 @@
         if (!project) {
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           return null;
         }
         try {
@@ -4048,12 +3325,10 @@
           }
           projectState.analysisResults = analysisPayload.analysis;
           projectState.analysisSource = source;
-          updateAnalysisDock(projectState.analysisResults);
           return analysisPayload.analysis;
         } catch (error) {
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           const message = error instanceof Error ? error.message : "Analysis failed.";
           setStatus("Analysis failed: " + message, "warn");
           return null;
@@ -4660,7 +3935,6 @@
           projectState.playbackSource = null;
           projectState.analysisResults = null;
           projectState.analysisSource = null;
-          updateAnalysisDock(null);
           clearPlaybackHighlights();
           updateTransportControls();
         }
@@ -4870,13 +4144,6 @@
       function attachEvents() {
         themeToggle.addEventListener("click", () => {
           setTheme(getTheme() === "dark" ? "light" : "dark");
-        });
-
-        analysisDockEls.collapseBtn.addEventListener("click", () => {
-          setAnalysisDockCollapsed(true);
-        });
-        analysisDockEls.expandBtn.addEventListener("click", () => {
-          setAnalysisDockCollapsed(false);
         });
 
         transportEls.playBtn.addEventListener("click", () => {
