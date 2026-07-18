@@ -648,7 +648,6 @@
       width: 320px;
       min-height: 0;
       display: grid;
-      overflow: hidden;
       transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
@@ -733,21 +732,6 @@
       align-content: start;
       gap: 12px;
       padding-right: 2px;
-      scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--accent) 60%, transparent) transparent;
-    }
-
-    .analysis-dock-body::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .analysis-dock-body::-webkit-scrollbar-thumb {
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--accent) 58%, transparent);
-    }
-
-    .analysis-dock-body::-webkit-scrollbar-track {
-      background: transparent;
     }
 
     /* Compact context (Scale Finder): a single centered message replaces
@@ -784,13 +768,8 @@
     .analysis-section {
       display: grid;
       gap: 8px;
-      padding-top: 12px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--line);
-    }
-
-    .analysis-section:first-child {
-      padding-top: 0;
     }
 
     .analysis-section:last-child {
@@ -910,21 +889,6 @@
        override only shortens it inside the dock's compact sections. */
     .analysis-section .events-box {
       max-height: 190px;
-      scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--accent) 60%, transparent) transparent;
-    }
-
-    .analysis-section .events-box::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .analysis-section .events-box::-webkit-scrollbar-thumb {
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--accent) 58%, transparent);
-    }
-
-    .analysis-section .events-box::-webkit-scrollbar-track {
-      background: transparent;
     }
 
     .block-title {
@@ -2063,14 +2027,9 @@
 
           <div class="analysis-dock-sections">
           <section class="analysis-section">
-            <div class="analysis-section-head">
-              <span class="analysis-mark" aria-hidden="true">O</span>
-              <h3 class="analysis-section-title">Overview</h3>
-            </div>
-            <div class="analysis-empty-state">
-              <p id="analysisOverviewStatus">No analysis available.</p>
-              <p class="analysis-empty-note">Generate tabs in the Transcriber or Tab Sequencer to see analysis here.</p>
-            </div>
+            <h3 class="analysis-section-title">Analysis</h3>
+            <p id="analysisOverviewStatus" class="status">No analysis available.</p>
+            <p class="analysis-empty-note">Generate tabs in the Transcriber or Tab Sequencer to see analysis here.</p>
           </section>
 
           <section class="analysis-section">
@@ -2126,7 +2085,7 @@
               <h3 class="analysis-section-title">Warnings</h3>
             </div>
             <div id="warningsEmptyState" class="analysis-empty-state">
-              <p>Stretch and position-shift warnings will appear here once analysis runs.</p>
+              <p>Stretch and position-shift warnings will appear here.</p>
             </div>
             <div id="warningsNoneState" class="analysis-empty-state" hidden>
               <p>No stretch or position-shift warnings detected.</p>
@@ -2957,8 +2916,6 @@
         analysisDockEls.expandBtn.setAttribute("aria-expanded", analysisDockCollapsed ? "false" : "true");
         if (analysisDockCollapsed) {
           analysisDockEls.expandBtn.focus();
-        } else {
-          analysisDockEls.collapseBtn.focus();
         }
       }
 
