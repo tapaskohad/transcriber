@@ -2098,13 +2098,9 @@
               <span class="analysis-mark" aria-hidden="true">A</span>
               <h3 class="analysis-section-title">Alternates</h3>
             </div>
-            <div id="alternatesEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Alternate fingerings will appear here once analysis runs.</p>
             </div>
-            <div id="alternatesNoneState" class="analysis-empty-state" hidden>
-              <p>No alternate fingerings available.</p>
-            </div>
-            <div id="alternatesData" class="events-box" hidden></div>
           </section>
 
           <section class="analysis-section">
@@ -2112,13 +2108,9 @@
               <span class="analysis-mark" aria-hidden="true">R</span>
               <h3 class="analysis-section-title">Recommendations</h3>
             </div>
-            <div id="recommendationsEmptyState" class="analysis-empty-state">
+            <div class="analysis-empty-state">
               <p>Recommendations will appear here once analysis runs.</p>
             </div>
-            <div id="recommendationsNoneState" class="analysis-empty-state" hidden>
-              <p>No recommendations available.</p>
-            </div>
-            <div id="recommendationsData" class="events-box" hidden></div>
           </section>
           </div>
         </div>
@@ -2210,18 +2202,6 @@
         empty: document.getElementById("warningsEmptyState"),
         none: document.getElementById("warningsNoneState"),
         data: document.getElementById("warningsData"),
-      };
-
-      const analysisAlternatesEls = {
-        empty: document.getElementById("alternatesEmptyState"),
-        none: document.getElementById("alternatesNoneState"),
-        data: document.getElementById("alternatesData"),
-      };
-
-      const analysisRecommendationsEls = {
-        empty: document.getElementById("recommendationsEmptyState"),
-        none: document.getElementById("recommendationsNoneState"),
-        data: document.getElementById("recommendationsData"),
       };
 
       const transportEls = {
@@ -3169,152 +3149,15 @@
         refs.data.hidden = false;
       }
 
-      // AlternateFingering.difficulty_score is a nested DifficultyScore
-      // that can be null. Reuses formatAnalysisNumber (same rounding rule
-      // as the Difficulty section) rather than a new formatter; returns
-      // null so the caller can omit the whole label when absent.
-      function formatAlternateDifficultyLabel(difficultyScore) {
-        if (!difficultyScore) {
-          return null;
-        }
-        const rawScore = difficultyScore.overall_score !== undefined && difficultyScore.overall_score !== null
-          ? difficultyScore.overall_score
-          : difficultyScore.overall;
-        const score = formatAnalysisNumber(rawScore);
-        if (score === null) {
-          return null;
-        }
-        const level = difficultyScore.difficulty_level || difficultyScore.label || "";
-        return level ? "Difficulty " + score + " (" + level + ")" : "Difficulty " + score;
-      }
-
-      // Builds the DOM nodes for one alternate: a header line (position in
-      // the backend-ranked list + whichever score fields are present) and
-      // an optional detail line (backend summary + tradeoffs, verbatim).
-      // Every value is read, not computed; missing fields are simply
-      // omitted rather than defaulted.
-      function buildAlternateRowNodes(alternate, index) {
-        const title = document.createElement("div");
-        const strongLabel = document.createElement("strong");
-        strongLabel.textContent = "Alternate " + (index + 1);
-        title.appendChild(strongLabel);
-
-        const scoreParts = [];
-        const qualityLabel = formatAnalysisNumber(alternate.quality_score);
-        if (qualityLabel !== null) {
-          scoreParts.push("Quality " + qualityLabel);
-        }
-        const difficultyLabel = formatAlternateDifficultyLabel(alternate.difficulty_score);
-        if (difficultyLabel) {
-          scoreParts.push(difficultyLabel);
-        }
-        const confidenceLabel = formatAnalysisNumber(alternate.confidence);
-        if (confidenceLabel !== null) {
-          scoreParts.push("Confidence " + confidenceLabel);
-        }
-        if (scoreParts.length > 0) {
-          title.appendChild(document.createTextNode(" | " + scoreParts.join(" | ")));
-        }
-
-        const nodes = [title];
-
-        const detailParts = [];
-        if (typeof alternate.summary === "string" && alternate.summary) {
-          detailParts.push(alternate.summary);
-        }
-        const tradeoffs = Array.isArray(alternate.tradeoffs)
-          ? alternate.tradeoffs.filter((item) => typeof item === "string" && item)
-          : [];
-        if (tradeoffs.length > 0) {
-          detailParts.push(tradeoffs.join("; "));
-        }
-        if (detailParts.length > 0) {
-          const detail = document.createElement("p");
-          detail.className = "analysis-summary";
-          detail.textContent = detailParts.join(" ");
-          nodes.push(detail);
-        }
-
-        return nodes;
-      }
-
-      // Alternates has the same three states as Warnings: no analysis yet
-      // (existing placeholder), analysis exists with zero backend
-      // alternates ("No alternate fingerings available."), or a populated
-      // list. The list itself is exactly the backend's own order — no
-      // ranking or filtering is done here.
-      function renderAlternatesSection(refs, analysisResults) {
-        const fingering = analysisResults ? analysisResults.fingering : null;
-        if (!fingering) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.none.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        const alternates = Array.isArray(fingering.alternate_fingerings) ? fingering.alternate_fingerings : [];
-        if (alternates.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = true;
-          refs.none.hidden = false;
-          return;
-        }
-        refs.data.innerHTML = "";
-        alternates.forEach((alternate, index) => {
-          const row = document.createElement("div");
-          row.className = "event-row";
-          for (const node of buildAlternateRowNodes(alternate, index)) {
-            row.appendChild(node);
-          }
-          refs.data.appendChild(row);
-        });
-        refs.empty.hidden = true;
-        refs.none.hidden = true;
-        refs.data.hidden = false;
-      }
-
-      // Recommendations is the simplest of the four list sections: each
-      // entry is already a complete backend-authored sentence
-      // (QualityReport.recommendations), so this reuses
-      // renderAnalysisRowList directly with no per-item formatting —
-      // strings are displayed verbatim, never generated or reworded.
-      function renderRecommendationsSection(refs, analysisResults) {
-        const quality = analysisResults ? analysisResults.quality : null;
-        if (!quality) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.none.hidden = true;
-          refs.empty.hidden = false;
-          return;
-        }
-        const recommendations = Array.isArray(quality.recommendations)
-          ? quality.recommendations.filter((item) => typeof item === "string" && item)
-          : [];
-        if (recommendations.length === 0) {
-          refs.data.hidden = true;
-          refs.data.innerHTML = "";
-          refs.empty.hidden = true;
-          refs.none.hidden = false;
-          return;
-        }
-        renderAnalysisRowList(refs.data, recommendations);
-        refs.empty.hidden = true;
-        refs.none.hidden = true;
-        refs.data.hidden = false;
-      }
-
       // Single entry point that keeps the dock's Difficulty, Quality,
-      // Fingering, Warnings, Alternates, and Recommendations sections in
-      // sync with projectState.analysisResults. Passing null restores
-      // every section's existing empty state.
+      // Fingering, and Warnings sections in sync with
+      // projectState.analysisResults. Passing null restores every
+      // section's existing empty state.
       function updateAnalysisDock(analysisResults) {
         renderAnalysisScoreCard(analysisDifficultyEls, readDifficultyView(analysisResults));
         renderAnalysisScoreCard(analysisQualityEls, readQualityView(analysisResults));
         renderFingeringSection(analysisFingeringEls, analysisResults);
         renderWarningsSection(analysisWarningsEls, analysisResults);
-        renderAlternatesSection(analysisAlternatesEls, analysisResults);
-        renderRecommendationsSection(analysisRecommendationsEls, analysisResults);
       }
 
       function escapeDataValue(value) {
