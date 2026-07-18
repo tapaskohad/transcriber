@@ -649,7 +649,9 @@ class WebApiTests(unittest.TestCase):
 
         self.assertIn("id=\"transportBar\"", body)
         self.assertIn("class PlaybackController", body)
-        self.assertIn("class SynthAudioEngine", body)
+        self.assertIn("class Instrument", body)
+        self.assertIn("class OscillatorInstrument extends Instrument", body)
+        self.assertIn("this.instrument.playNote", body)
         self.assertIn("AudioContext", body)
         self.assertIn("requestAnimationFrame", body)
         self.assertIn("activeeventchange", body)

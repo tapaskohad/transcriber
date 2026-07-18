@@ -2452,7 +2452,40 @@
         return 440 * Math.pow(2, (Number(midi) - 69) / 12);
       }
 
-      class SynthAudioEngine {
+      // Instrument is the playback sound-production boundary. PlaybackController
+      // owns timeline transport and supplies each note with its scheduled start;
+      // an Instrument owns how that note is rendered (or sent elsewhere).
+      class Instrument {
+        async initialize() {
+          throw new Error("Instrument.initialize() must be implemented.");
+        }
+
+        get currentTime() {
+          return null;
+        }
+
+        playNote(_event, _options) {
+          throw new Error("Instrument.playNote() must be implemented.");
+        }
+
+        cancelScheduled() {
+          throw new Error("Instrument.cancelScheduled() must be implemented.");
+        }
+
+        setVolume(_volume) {
+          throw new Error("Instrument.setVolume() must be implemented.");
+        }
+
+        setMuted(_muted) {
+          throw new Error("Instrument.setMuted() must be implemented.");
+        }
+
+        dispose() {
+          throw new Error("Instrument.dispose() must be implemented.");
+        }
+      }
+
+      class OscillatorInstrument extends Instrument {
         constructor() {
           this.context = null;
           this.masterGain = null;
@@ -2461,7 +2494,7 @@
           this.muted = false;
         }
 
-        async ensureContext() {
+        async initialize() {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
           if (!AudioContextClass) {
             throw new Error("Web Audio is not available in this browser.");
@@ -2476,6 +2509,10 @@
             await this.context.resume();
           }
           return this.context;
+        }
+
+        get currentTime() {
+          return this.context ? this.context.currentTime : null;
         }
 
         _effectiveVolume() {
@@ -2502,7 +2539,7 @@
           this._applyGain();
         }
 
-        scheduleEvent(event, contextTime, playbackSpeed, offsetSeconds = 0) {
+        playNote(event, { startTime, playbackSpeed, offsetSeconds = 0 } = {}) {
           if (!this.context || !this.masterGain || !event) {
             return;
           }
@@ -2513,7 +2550,7 @@
           const safeSpeed = Math.max(0.25, Number(playbackSpeed) || 1);
           const totalDuration = Math.max(0.04, Number(event.duration_s || 0.2));
           const duration = Math.max(0.04, (totalDuration - Math.max(0, offsetSeconds)) / safeSpeed);
-          const startAt = Math.max(this.context.currentTime + 0.006, Number(contextTime) || this.context.currentTime);
+          const startAt = Math.max(this.context.currentTime + 0.006, Number(startTime) || this.context.currentTime);
           const attack = Math.min(0.012, duration * 0.28);
           const release = Math.min(0.045, duration * 0.4);
           const endAt = startAt + duration;
@@ -2569,13 +2606,25 @@
           }
           this.voices = [];
         }
+
+        dispose() {
+          this.cancelScheduled();
+          if (this.masterGain) {
+            this.masterGain.disconnect();
+          }
+          if (this.context) {
+            void this.context.close();
+          }
+          this.context = null;
+          this.masterGain = null;
+        }
       }
 
       class PlaybackController extends EventTarget {
-        constructor(state, audioEngine) {
+        constructor(state, instrument) {
           super();
           this.projectState = state;
-          this.audioEngine = audioEngine;
+          this.instrument = instrument;
           this.rafId = 0;
           this.clockStartedAtMs = 0;
           this.clockStartedAtTimelineS = 0;
@@ -2594,7 +2643,7 @@
 
         loadTimeline(timeline, rawStatus = {}) {
           this._cancelFrame();
-          this.audioEngine.cancelScheduled();
+          this.instrument.cancelScheduled();
           this.scheduledEventIds.clear();
           this.projectState.timeline = timeline && timelineEvents(timeline).length > 0 ? timeline : null;
           const normalized = normalizePlaybackStatus(rawStatus, this.projectState.timeline);
@@ -2625,7 +2674,7 @@
             startTime = 0;
           }
           try {
-            await this.audioEngine.ensureContext();
+            await this.instrument.initialize();
             this.dispatchEvent(new CustomEvent("audiowarning", { detail: { message: "" } }));
           } catch (error) {
             console.warn(error instanceof Error ? error.message : "Audio initialization failed.");
@@ -2635,8 +2684,8 @@
           }
           this.clockStartedAtMs = performance.now();
           this.clockStartedAtTimelineS = startTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
+          if (this.instrument.currentTime !== null) {
+            this.audioStartedAtContextS = this.instrument.currentTime + 0.035;
           } else {
             this.audioStartedAtContextS = 0;
           }
@@ -2656,7 +2705,7 @@
           }
           const currentTime = this._clockTime();
           this._cancelFrame();
-          this.audioEngine.cancelScheduled();
+          this.instrument.cancelScheduled();
           this.scheduledEventIds.clear();
           this._commitStatus({
             isPlaying: false,
@@ -2666,7 +2715,7 @@
 
         stop() {
           this._cancelFrame();
-          this.audioEngine.cancelScheduled();
+          this.instrument.cancelScheduled();
           this.scheduledEventIds.clear();
           this._commitStatus({
             isPlaying: false,
@@ -2688,12 +2737,12 @@
           const duration = timelineDuration(this.timeline);
           const nextTime = clampNumber(seconds, 0, duration);
           const wasPlaying = this.status.isPlaying;
-          this.audioEngine.cancelScheduled();
+          this.instrument.cancelScheduled();
           this.scheduledEventIds.clear();
           this.clockStartedAtMs = performance.now();
           this.clockStartedAtTimelineS = nextTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
+          if (this.instrument.currentTime !== null) {
+            this.audioStartedAtContextS = this.instrument.currentTime + 0.035;
           }
           this.audioStartedAtTimelineS = nextTime;
           this._commitStatus({
@@ -2714,12 +2763,12 @@
           const nextSpeed = clampNumber(speed, 0.25, 4) || 1;
           const currentTime = this.status.isPlaying ? this._clockTime() : this.status.currentTime;
           const wasPlaying = this.status.isPlaying;
-          this.audioEngine.cancelScheduled();
+          this.instrument.cancelScheduled();
           this.scheduledEventIds.clear();
           this.clockStartedAtMs = performance.now();
           this.clockStartedAtTimelineS = currentTime;
-          if (this.audioEngine.context) {
-            this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
+          if (this.instrument.currentTime !== null) {
+            this.audioStartedAtContextS = this.instrument.currentTime + 0.035;
           }
           this.audioStartedAtTimelineS = currentTime;
           this._commitStatus({
@@ -2771,17 +2820,17 @@
           if (duration > 0 && currentTime >= duration) {
             if (this.status.loopEnabled) {
               currentTime = currentTime % duration;
-              this.audioEngine.cancelScheduled();
+              this.instrument.cancelScheduled();
               this.scheduledEventIds.clear();
               this.clockStartedAtMs = performance.now();
               this.clockStartedAtTimelineS = currentTime;
-              if (this.audioEngine.context) {
-                this.audioStartedAtContextS = this.audioEngine.context.currentTime + 0.035;
+              if (this.instrument.currentTime !== null) {
+                this.audioStartedAtContextS = this.instrument.currentTime + 0.035;
               }
               this.audioStartedAtTimelineS = currentTime;
             } else {
               this._cancelFrame();
-              this.audioEngine.cancelScheduled();
+              this.instrument.cancelScheduled();
               this.scheduledEventIds.clear();
               this._commitStatus({
                 isPlaying: false,
@@ -2854,11 +2903,11 @@
         }
 
         _scheduleAudioWindow() {
-          const context = this.audioEngine.context;
-          if (!context || !this.timeline || !this.status.isPlaying) {
+          const instrumentTime = this.instrument.currentTime;
+          if (instrumentTime === null || !this.timeline || !this.status.isPlaying) {
             return;
           }
-          const now = context.currentTime;
+          const now = instrumentTime;
           const horizon = 0.32;
           const speed = Math.max(0.25, Number(this.status.playbackSpeed) || 1);
           const currentTime = this.status.currentTime || 0;
@@ -2877,13 +2926,17 @@
             if (contextTime < now - 0.02 || contextTime > now + horizon) {
               continue;
             }
-            this.audioEngine.scheduleEvent(event, contextTime, speed, offset);
+            this.instrument.playNote(event, {
+              startTime: contextTime,
+              playbackSpeed: speed,
+              offsetSeconds: offset,
+            });
             this.scheduledEventIds.add(id);
           }
         }
       }
 
-      const playbackController = new PlaybackController(projectState, new SynthAudioEngine());
+      const playbackController = new PlaybackController(projectState, new OscillatorInstrument());
 
       function readText(key, fallback = "") {
         try {
@@ -3478,19 +3531,19 @@
         transportEls.sourceLabel.classList.remove("warn");
       }
 
-      // Mirrors SynthAudioEngine's volume/muted fields onto the transport's
-      // mute button and volume slider. The engine remains the source of
+      // Mirrors the active Instrument's volume/muted fields onto the transport's
+      // mute button and volume slider. The instrument remains the source of
       // truth; this only reads it, matching the read-only relationship the
       // rest of the transport already has with PlaybackController.status.
       function updateVolumeControls() {
-        const engine = playbackController.audioEngine;
-        if (!transportEls.muteBtn || !transportEls.volume || !engine) {
+        const instrument = playbackController.instrument;
+        if (!transportEls.muteBtn || !transportEls.volume || !instrument) {
           return;
         }
-        transportEls.muteBtn.classList.toggle("active", Boolean(engine.muted));
-        transportEls.muteBtn.setAttribute("aria-pressed", engine.muted ? "true" : "false");
+        transportEls.muteBtn.classList.toggle("active", Boolean(instrument.muted));
+        transportEls.muteBtn.setAttribute("aria-pressed", instrument.muted ? "true" : "false");
         if (document.activeElement !== transportEls.volume) {
-          transportEls.volume.value = String(Math.round(engine.volume * 100));
+          transportEls.volume.value = String(Math.round(instrument.volume * 100));
         }
       }
 
@@ -5095,14 +5148,14 @@
           playbackController.setLoop(!projectState.playbackStatus.loopEnabled);
         });
         transportEls.muteBtn.addEventListener("click", () => {
-          playbackController.audioEngine.setMuted(!playbackController.audioEngine.muted);
+          playbackController.instrument.setMuted(!playbackController.instrument.muted);
           updateVolumeControls();
         });
         transportEls.volume.addEventListener("input", () => {
           const nextVolume = Number(transportEls.volume.value || 0) / 100;
-          playbackController.audioEngine.setVolume(nextVolume);
-          if (nextVolume > 0 && playbackController.audioEngine.muted) {
-            playbackController.audioEngine.setMuted(false);
+          playbackController.instrument.setVolume(nextVolume);
+          if (nextVolume > 0 && playbackController.instrument.muted) {
+            playbackController.instrument.setMuted(false);
           }
           updateVolumeControls();
         });
