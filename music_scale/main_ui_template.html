@@ -1949,7 +1949,7 @@
       <section class="panel">
         <div class="panel-head">
           <h2 class="block-title">Selected Sequence</h2>
-          <p class="block-subtitle">Build phrase blocks and keep full control over chosen tab positions.</p>
+          <p class="block-subtitle">Build phrase blocks and keep full control over chosen tab positions. Hold Ctrl/Cmd or Shift while clicking a fret to add it to the current chord.</p>
         </div>
         <p id="seqStatus" class="status">Loading...</p>
         <textarea id="seqEditor" class="text-area" spellcheck="false"></textarea>
@@ -1985,7 +1985,7 @@
             </select>
           </div>
         </div>
-        <p class="mono-note">Token format: <code>E4</code> or <code>E4@1:0</code>. Use <code>||</code> for line/group breaks.</p>
+        <p class="mono-note">Token format: <code>E4</code> or <code>E4@1:0</code>. Use <code>+</code> for notes at the same beat, <code>-&gt;</code> for the next beat, and <code>||</code> for a new tab line.</p>
       </section>
 
       <section class="panel panel-grid">
@@ -3991,7 +3991,7 @@
             button.dataset.noteName = fretData.note_name;
             button.dataset.pitchClass = fretData.note;
             button.title = row.string + " fret " + fretData.fret + " -> " + fretData.note_name;
-            button.addEventListener("click", () => onPress(row, fretData, button));
+            button.addEventListener("click", (event) => onPress(row, fretData, button, event));
             td.appendChild(button);
             tr.appendChild(td);
           }
@@ -4715,23 +4715,29 @@
           const chunks = line.split("||").map((chunk) => chunk.trim()).filter(Boolean);
           let groupsOnLine = 0;
           for (const chunk of chunks) {
-            const tokens = chunk.split("->").map((item) => item.trim()).filter(Boolean);
-            if (tokens.length === 0) {
+            const beatTokens = chunk.split("->").map((item) => item.trim()).filter(Boolean);
+            if (beatTokens.length === 0) {
               continue;
             }
-            const group = [];
-            for (const token of tokens) {
-              const match = token.match(NOTE_WITH_OPTIONAL_TAB_RE);
-              if (!match) {
-                throw new Error("Invalid token '" + token + "'. Use E4 or E4@1:0.");
+            for (const beatToken of beatTokens) {
+              const group = [];
+              const chordTokens = beatToken.split("+").map((item) => item.trim()).filter(Boolean);
+              for (const token of chordTokens) {
+                const match = token.match(NOTE_WITH_OPTIONAL_TAB_RE);
+                if (!match) {
+                  throw new Error("Invalid token '" + token + "'. Use E4 or E4@1:0.");
+                }
+                group.push({
+                  note: normalizeNoteToken(match[1], match[2], match[3]),
+                  preferred: match[4] || null,
+                });
               }
-              group.push({
-                note: normalizeNoteToken(match[1], match[2], match[3]),
-                preferred: match[4] || null,
-              });
+              if (group.length === 0) {
+                continue;
+              }
+              groups.push(group);
+              groupsOnLine += 1;
             }
-            groups.push(group);
-            groupsOnLine += 1;
           }
           if (groupsOnLine > 0) {
             lineGroupLengths.push(groupsOnLine);
@@ -4747,7 +4753,7 @@
       function formatSequencerGroup(group) {
         return group
           .map((item) => item.note + (item.preferred ? "@" + item.preferred : ""))
-          .join(" -> ");
+          .join(" + ");
       }
 
       function normalizeSequencerLineGroupLengths(groups, lineGroupLengths) {
@@ -4771,12 +4777,12 @@
         for (const groupCount of safeLineGroupLengths) {
           const lineGroups = groups.slice(cursor, cursor + groupCount);
           if (lineGroups.length > 0) {
-            lines.push(lineGroups.map(formatSequencerGroup).join(" || "));
+            lines.push(lineGroups.map(formatSequencerGroup).join(" -> "));
           }
           cursor += groupCount;
         }
         if (cursor < groups.length) {
-          lines.push(groups.slice(cursor).map(formatSequencerGroup).join(" || "));
+          lines.push(groups.slice(cursor).map(formatSequencerGroup).join(" -> "));
         }
         return lines.join(" ||\n");
       }
@@ -4806,15 +4812,30 @@
         sequencerNextLineWasArmed = armed;
       }
 
-      function appendSequencerFromFret(noteName, stringId, fret) {
+      function appendSequencerFromFret(noteName, stringId, fret, event = {}) {
         const token = noteName + "@" + String(stringId) + ":" + String(fret);
+        const addToCurrentBeat = Boolean(event.ctrlKey || event.metaKey || event.shiftKey);
+        if (addToCurrentBeat) {
+          try {
+            const layout = parseSequencerLayout(seqEls.editor.value);
+            if (layout.groups.length > 0) {
+              layout.groups[layout.groups.length - 1].push({ note: noteName, preferred: String(stringId) + ":" + String(fret) });
+              seqEls.editor.value = serializeSequencerLayout(layout.groups, layout.lineGroupLengths);
+              writeText(KEYS.seqEditor, seqEls.editor.value);
+              updateSequencerNextLineState();
+              return;
+            }
+          } catch (_error) {
+            // Preserve the user's text if it is incomplete; normal insertion below remains available.
+          }
+        }
         const lineReadyBase = seqEls.editor.value.replace(/[ \t]+$/g, "");
         const base = seqEls.editor.value.replace(/\s+$/g, "");
         if (!lineReadyBase.trim()) {
           seqEls.editor.value = token;
         } else if (isSequencerNextLineArmed()) {
           seqEls.editor.value = lineReadyBase + token;
-        } else if (/(?:\|\||->)$/.test(base)) {
+        } else if (/(?:\|\||->|\+)$/.test(base)) {
           seqEls.editor.value = base + " " + token;
         } else {
           seqEls.editor.value = base + " -> " + token;
@@ -4825,7 +4846,7 @@
 
       function sequencerInsertSpace() {
         const base = seqEls.editor.value.replace(/\s+$/g, "");
-        if (!base || /(?:\|\||->)$/.test(base)) {
+        if (!base || /(?:\|\||->|\+)$/.test(base)) {
           return;
         }
         seqEls.editor.value = base + " || ";
@@ -4843,7 +4864,7 @@
         }
 
         const base = seqEls.editor.value.replace(/\s+$/g, "");
-        if (!base || /(?:\|\||->)$/.test(base)) {
+        if (!base || /(?:\|\||->|\+)$/.test(base)) {
           return;
         }
         seqEls.editor.value = base + " ||\n";
@@ -5087,8 +5108,8 @@
       }
 
       function renderSequencerFretboard() {
-        renderFretboard(seqEls.fretHead, seqEls.fretBody, (row, fretData, button) => {
-          appendSequencerFromFret(fretData.note_name, row.string, fretData.fret);
+        renderFretboard(seqEls.fretHead, seqEls.fretBody, (row, fretData, button, event) => {
+          appendSequencerFromFret(fretData.note_name, row.string, fretData.fret, event);
           pulseOnce(button, "fret-select-pulse", 340);
           void refreshSequencerTabs();
         });

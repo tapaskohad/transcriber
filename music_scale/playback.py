@@ -54,10 +54,11 @@ class TimelineBuilder:
             if tab.event_id
         }
         group_ids = self._group_ids(len(event_tuple), group_lengths)
+        start_beats = self._start_beats(len(event_tuple), group_lengths)
 
         timeline_events: list[TimelineEvent] = []
         for index, event in enumerate(event_tuple, start=1):
-            start_beat = (index - 1) * self.default_duration.beats
+            start_beat = start_beats[index - 1]
             start_s = self._seconds_from_beats(start_beat)
             measure = self._measure_for_beat(start_beat)
             tab = tab_by_event_id.get(event.event_id)
@@ -82,7 +83,12 @@ class TimelineBuilder:
                 )
             )
 
-        duration_beats = len(timeline_events) * self.default_duration.beats
+        duration_beats = (
+            max(
+                (event.start_beat + event.duration_beats for event in timeline_events),
+                default=0.0,
+            )
+        )
         duration_s = self._seconds_from_beats(duration_beats)
         return Timeline(
             events=tuple(timeline_events),
@@ -169,6 +175,38 @@ class TimelineBuilder:
                 for _ in range(event_count - len(group_ids))
             )
         return tuple(group_ids[:event_count])
+
+    def _start_beats(
+        self,
+        event_count: int,
+        group_lengths: Sequence[int] | None,
+    ) -> tuple[float, ...]:
+        """Return event starts, with every supplied group sharing one beat.
+
+        ``group_lengths`` already expresses simultaneous note groups at the API
+        boundary.  Keeping that relationship here makes the timeline's timing
+        agree with its group IDs without changing the Timeline model.
+        """
+        if event_count <= 0:
+            return ()
+        if not group_lengths:
+            return tuple(
+                index * self.default_duration.beats for index in range(event_count)
+            )
+
+        starts: list[float] = []
+        beat = 0.0
+        for raw_length in group_lengths:
+            length = max(0, int(raw_length))
+            if length <= 0:
+                continue
+            starts.extend(beat for _ in range(length))
+            beat += self.default_duration.beats
+
+        while len(starts) < event_count:
+            starts.append(beat)
+            beat += self.default_duration.beats
+        return tuple(starts[:event_count])
 
     def _beat_grid(self, duration_beats: float) -> tuple[float, ...]:
         if duration_beats <= 0:

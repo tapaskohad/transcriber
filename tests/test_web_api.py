@@ -264,10 +264,20 @@ class WebApiTests(unittest.TestCase):
                 self.assertEqual(first["string"], 1)
                 self.assertEqual(first["fret"], 0)
                 self.assertEqual(first["group_id"], "group_000001")
+                self.assertEqual(first["start_beat"], 0.0)
+                self.assertEqual(first["start_s"], 0.0)
+            second = events[1]
+            self.assertIsInstance(second, dict)
+            if isinstance(second, dict):
+                self.assertEqual(second["group_id"], "group_000001")
+                self.assertEqual(second["start_beat"], 0.0)
+                self.assertEqual(second["start_s"], 0.0)
             third = events[2]
             self.assertIsInstance(third, dict)
             if isinstance(third, dict):
                 self.assertEqual(third["group_id"], "group_000002")
+                self.assertEqual(third["start_beat"], 1.0)
+                self.assertEqual(third["start_s"], 0.5)
 
         tempo = payload.get("tempo")
         self.assertIsInstance(tempo, dict)
@@ -720,6 +730,22 @@ class WebApiTests(unittest.TestCase):
         self.assertEqual(payload["tab_groups"], [["1:0", "1:2"], ["1:3", "1:5"]])
         ascii_tab = self._require_str(payload["ascii_tab"], "ascii_tab")
         self.assertIn("2---------3", ascii_tab)
+
+    def test_transcribe_notes_mode_returns_simultaneous_chord_events(self) -> None:
+        status, payload = self._request_json(
+            "/api/transcribe",
+            method="POST",
+            payload={
+                "mode": "notes",
+                "note_groups": [["C4", "E4", "G4"], ["C5"]],
+            },
+        )
+
+        self.assertEqual(status, 200)
+        timeline = self._require_dict(payload["timeline"], "timeline")
+        events = self._require_list(timeline["events"], "timeline.events")
+        starts = [self._require_dict(event, "timeline.events[]")["start_s"] for event in events]
+        self.assertEqual(starts, [0.0, 0.0, 0.0, 0.5])
 
     def test_transcribe_notes_mode_respects_explicit_tab_lines(self) -> None:
         status, payload = self._request_json(

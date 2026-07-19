@@ -87,6 +87,46 @@ class PlaybackTimelineTests(unittest.TestCase):
         self.assertIn("bar", marker_types)
         self.assertIn("group", marker_types)
 
+    def test_builder_keeps_two_note_chord_at_one_start_time(self) -> None:
+        events = tuple(
+            NoteEvent(
+                event_id=f"event_{index:06d}",
+                note=note,
+                octave=4,
+                midi=midi,
+                frequency_hz=440.0,
+                start_s=0.0,
+                end_s=0.5,
+            )
+            for index, (note, midi) in enumerate((("C", 60), ("E", 64), ("G", 67)), start=1)
+        )
+
+        timeline = TimelineBuilder().build(events, group_lengths=[2, 1])
+
+        self.assertEqual([event.start_beat for event in timeline.events], [0.0, 0.0, 1.0])
+        self.assertEqual([event.start_s for event in timeline.events], [0.0, 0.0, 0.5])
+        self.assertEqual(timeline.duration_beats, 2.0)
+
+    def test_builder_keeps_three_note_chord_at_one_start_time(self) -> None:
+        events = tuple(
+            NoteEvent(
+                event_id=f"event_{index:06d}",
+                note=note,
+                octave=4,
+                midi=midi,
+                frequency_hz=440.0,
+                start_s=0.0,
+                end_s=0.5,
+            )
+            for index, (note, midi) in enumerate((("C", 60), ("E", 64), ("G", 67)), start=1)
+        )
+
+        timeline = TimelineBuilder().build(events, group_lengths=[3])
+
+        self.assertEqual([event.start_beat for event in timeline.events], [0.0, 0.0, 0.0])
+        self.assertEqual([event.start_s for event in timeline.events], [0.0, 0.0, 0.0])
+        self.assertEqual(timeline.duration_beats, 1.0)
+
     def test_project_state_preserves_playback_status(self) -> None:
         event = NoteEvent(
             event_id="event_000001",
